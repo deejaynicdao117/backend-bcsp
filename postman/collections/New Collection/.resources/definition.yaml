@@ -1,0 +1,26 @@
+$kind: collection
+variables:
+  url: ""
+  access_token: ""
+scripts:
+  - type: http:afterResponse
+    code: "try {\r
+
+      \  const body = pm.response.json();\r
+
+      \  const token = body.access_token || body.token;\r
+
+      \  if (token) pm.collectionVariables.set('access_token', token);\r
+
+      } catch {\r
+
+      \  // Ignore non-JSON responses.\r
+
+      }"
+    language: text/javascript
+auth:
+  - id: 49084009-70b8-49ba-a98e-1c0b2cc3ffac
+    type: bearer
+    name: Bearer Token
+    credentials:
+      token: "{{access_token}}"
