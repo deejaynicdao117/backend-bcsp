@@ -11,7 +11,7 @@
 
 ### Fresh clone — do this to avoid errors
 
-`.env`, `vendor/`, `node_modules/`, `public/build/`, and the SQLite database are **not** in Git, so a fresh clone will break without these steps:
+`.env`, `vendor/`, `node_modules/`, and `public/build/` are **not** in Git, and the database must be created manually, so a fresh clone will break without these steps:
 
 ```powershell
 # 0. Confirm your tools exist (missing any = "not recognized" errors later)
@@ -19,8 +19,8 @@ php --version
 composer --version
 node --version
 
-# 0b. Confirm the SQLite extension is enabled (required or migrate fails)
-php -m | findstr pdo_sqlite
+# 0b. Confirm the MySQL extension is enabled (required or migrate fails)
+php -m | findstr pdo_mysql
 
 # 1. PHP dependencies (vendor/ is not cloned)
 composer install
@@ -29,10 +29,9 @@ composer install
 Copy-Item .env.example .env
 php artisan key:generate
 
-# 3. The database file is not cloned — create it or migrate fails
-if (-not (Test-Path .\database\database.sqlite)) {
-    New-Item .\database\database.sqlite -ItemType File | Out-Null
-}
+# 3. Create the database in XAMPP's MySQL (or in phpMyAdmin):
+#    CREATE DATABASE bscp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+& "C:\xampp\mysql\bin\mysql.exe" -u root -e "CREATE DATABASE IF NOT EXISTS bscp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # 4. Build tables + demo accounts (use migrate:fresh --seed to RESET a DB)
 php artisan migrate --seed
@@ -42,13 +41,16 @@ npm install
 npm run build
 ```
 
-> Shortcut: `composer setup` runs steps 1, 2, 4, and 5 — but it does **not** create `database/database.sqlite` or run the seeder, so do step 3 first and `php artisan db:seed` after.
+> XAMPP must be running (MySQL on port 3306) before `php artisan migrate` or `php artisan serve`.
+
+> Shortcut: `composer setup` runs steps 1, 2, 4, and 5 — but it does **not** create the database, so do step 3 first.
 
 ### Prerequisites
 
-- PHP >= 8.2
+- PHP >= 8.2 (with `pdo_mysql` extension — included in XAMPP)
 - [Composer](https://getcomposer.org)
 - [Node.js](https://nodejs.org) (npm included)
+- [XAMPP](https://www.apachefriends.org) — MySQL must be running (start it in the XAMPP Control Panel)
 
 ### Install
 
@@ -60,9 +62,9 @@ composer install
 cp .env.example .env
 php artisan key:generate
 
-# 3. Create the SQLite database and run migrations
-#    cmd.exe: type nul > database\database.sqlite
-#    PowerShell: New-Item database/database.sqlite
+# 3. Create the database in MySQL (XAMPP), then migrate
+#    cmd.exe: C:\xampp\mysql\bin\mysql.exe -u root -e "CREATE DATABASE IF NOT EXISTS bscp"
+#    or make it in phpMyAdmin
 php artisan migrate
 
 # 4. Install JS dependencies and build assets
@@ -116,11 +118,8 @@ php artisan pint               # format code (Laravel Pint)
 ### Windows CMD / PowerShell
 
 ```powershell
-# Create the SQLite database file (cmd.exe)
-type nul > database\database.sqlite
-
-# Create the SQLite database file (PowerShell)
-New-Item database\database.sqlite
+# Create the MySQL database (cmd.exe or PowerShell)
+& "C:\xampp\mysql\bin\mysql.exe" -u root -e "CREATE DATABASE IF NOT EXISTS bscp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # Copy the env file (cmd.exe)
 copy .env.example .env
