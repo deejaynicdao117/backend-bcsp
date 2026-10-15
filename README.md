@@ -19,9 +19,6 @@ php --version
 composer --version
 node --version
 
-# 0b. Confirm the MySQL extension is enabled (required or migrate fails)
-php -m | findstr pdo_mysql
-
 # 1. PHP dependencies (vendor/ is not cloned)
 composer install
 
