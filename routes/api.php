@@ -1,8 +1,8 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\Admin\CommunityController as AdminCommunityController;
 use App\Http\Controllers\Admin\AdminUserController;
+use App\Http\Controllers\Admin\CommunityController as AdminCommunityController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\Residents\CommunityController as ResidentCommunityController;
@@ -13,10 +13,15 @@ use App\Http\Controllers\Staff\DocumentRequestController as StaffDocumentRequest
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->middleware('force.json')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
-    Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-    Route::get('/me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+    Route::controller(AuthController::class)->group(function () {
+        Route::post('/register', 'register');
+        Route::post('/register/verify', 'verifyRegistrationCode')->middleware('throttle:6,1');
+        Route::post('/register/resend-code', 'resendRegistrationCode')->middleware('throttle:3,1');
+        Route::post('/login', 'login');
+        Route::post('/logout', 'logout')->middleware('auth:sanctum');
+        Route::get('/me', 'me')->middleware('auth:sanctum');
+    });
+
     Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
         ->middleware('signed')
         ->name('verification.verify');
@@ -25,70 +30,94 @@ Route::prefix('auth')->middleware('force.json')->group(function () {
 Route::middleware(['force.json', 'auth:sanctum'])->group(function () {
     Route::get('/user/account', [AuthController::class, 'me']);
 
-    Route::apiResource('document-types', DocumentTypeController::class)
-        ->only(['index', 'store']);
+    Route::controller(DocumentTypeController::class)
+        ->prefix('document-types')
+        ->group(function () {
+            Route::get('/', 'index');
+        });
 
     Route::post('/auth/email/verification-notification', [EmailVerificationController::class, 'resend'])
         ->middleware('throttle:6,1');
 
-    Route::prefix('community')->group(function () {
-        Route::get('/announcements', [ResidentCommunityController::class, 'announcements']);
-        Route::get('/emergency-contacts', [ResidentCommunityController::class, 'emergencyContacts']);
-        Route::get('/evacuation-centers', [ResidentCommunityController::class, 'evacuationCenters']);
+    Route::prefix('community')->controller(ResidentCommunityController::class)->group(function () {
+        Route::get('/announcements', 'announcements');
+        Route::get('/emergency-contacts', 'emergencyContacts');
+        Route::get('/evacuation-centers', 'evacuationCenters');
     });
 
     Route::prefix('resident')->middleware('role:resident')->group(function () {
-        Route::get('/profile', [ResidentCommunityController::class, 'profile']);
-        Route::put('/profile', [ResidentCommunityController::class, 'updateProfile']);
-        Route::post('/document-requests', [ResidentDocumentRequestController::class, 'store']);
-        Route::get('/document-requests', [ResidentDocumentRequestController::class, 'index']);
-        Route::get('/complaints', [ResidentCommunityController::class, 'complaints']);
-        Route::post('/complaints', [ResidentCommunityController::class, 'submitComplaint']);
-        Route::get('/disaster-assistance', [ResidentCommunityController::class, 'assistanceRequests']);
-        Route::post('/disaster-assistance', [ResidentCommunityController::class, 'submitAssistanceRequest']);
+        Route::controller(ResidentCommunityController::class)->group(function () {
+            Route::get('/profile', 'profile');
+            Route::put('/profile', 'updateProfile');
+            Route::get('/complaints', 'complaints');
+            Route::post('/complaints', 'submitComplaint');
+            Route::get('/disaster-assistance', 'assistanceRequests');
+            Route::post('/disaster-assistance', 'submitAssistanceRequest');
+        });
+
+        Route::controller(ResidentDocumentRequestController::class)->group(function () {
+            Route::post('/document-requests', 'store');
+            Route::get('/document-requests', 'index');
+        });
     });
 
     Route::prefix('staff')->middleware('role:staff')->group(function () {
-        Route::get('/document-requests', [StaffDocumentRequestController::class, 'index']);
-        Route::put('/document-requests/{documentRequest}', [StaffDocumentRequestController::class, 'updateStatus']);
-        Route::get('/households', [StaffCommunityController::class, 'households']);
-        Route::put('/households/{household}/verification', [StaffCommunityController::class, 'verifyHousehold']);
-        Route::get('/residents', [StaffCommunityController::class, 'residents']);
-        Route::put('/residents/{user}/verification', [StaffCommunityController::class, 'verifyResident']);
-        Route::get('/complaints', [StaffCommunityController::class, 'complaints']);
-        Route::put('/complaints/{complaint}', [StaffCommunityController::class, 'updateComplaint']);
-        Route::get('/disaster-assistance', [StaffCommunityController::class, 'assistanceRequests']);
-        Route::put('/disaster-assistance/{assistanceRequest}', [StaffCommunityController::class, 'updateAssistance']);
-        Route::get('/analytics/community', [StaffCommunityController::class, 'analytics']);
+        Route::controller(StaffDocumentRequestController::class)->group(function () {
+            Route::get('/document-requests', 'index');
+            Route::put('/document-requests/{documentRequest}', 'updateStatus');
+            Route::get('/document-requests/{documentRequest}/document', 'downloadDocument');
+        });
+
+        Route::controller(StaffCommunityController::class)->group(function () {
+            Route::get('/households', 'households');
+            Route::put('/households/{household}/verification', 'verifyHousehold');
+            Route::get('/residents', 'residents');
+            Route::put('/residents/{user}/verification', 'verifyResident');
+            Route::get('/complaints', 'complaints');
+            Route::put('/complaints/{complaint}', 'updateComplaint');
+            Route::get('/disaster-assistance', 'assistanceRequests');
+            Route::put('/disaster-assistance/{assistanceRequest}', 'updateAssistance');
+            Route::get('/analytics/community', 'analytics');
+        });
     });
 
     Route::prefix('admin')->middleware('role:admin')->group(function () {
-        Route::get('/users', [AdminController::class, 'users']);
-        Route::post('/users', [AdminUserController::class, 'store']);
-        Route::put('/users/{user}', [AdminUserController::class, 'update']);
-        Route::delete('/users/{user}', [AdminUserController::class, 'destroy']);
-        Route::get('/dashboard', [AdminController::class, 'dashboard']);
-        Route::get('/document-requests', [AdminController::class, 'documentRequests']);
-        Route::get('/reports', [AdminController::class, 'reports']);
-        Route::get('/notifications', [AdminController::class, 'notifications']);
-        Route::get('/households', [AdminCommunityController::class, 'households']);
-        Route::get('/announcements', [AdminCommunityController::class, 'announcements']);
-        Route::post('/announcements', [AdminCommunityController::class, 'saveAnnouncement']);
-        Route::put('/announcements/{announcement}', [AdminCommunityController::class, 'saveAnnouncement']);
-        Route::delete('/announcements/{announcement}', [AdminCommunityController::class, 'deleteAnnouncement']);
-        Route::get('/emergency-contacts', [AdminCommunityController::class, 'emergencyContacts']);
-        Route::post('/emergency-contacts', [AdminCommunityController::class, 'saveEmergencyContact']);
-        Route::put('/emergency-contacts/{contact}', [AdminCommunityController::class, 'saveEmergencyContact']);
-        Route::delete('/emergency-contacts/{contact}', [AdminCommunityController::class, 'deleteEmergencyContact']);
-        Route::get('/evacuation-centers', [AdminCommunityController::class, 'evacuationCenters']);
-        Route::post('/evacuation-centers', [AdminCommunityController::class, 'saveEvacuationCenter']);
-        Route::put('/evacuation-centers/{center}', [AdminCommunityController::class, 'saveEvacuationCenter']);
-        Route::delete('/evacuation-centers/{center}', [AdminCommunityController::class, 'deleteEvacuationCenter']);
-        Route::get('/settings', [AdminCommunityController::class, 'settings']);
-        Route::put('/settings', [AdminCommunityController::class, 'saveSetting']);
-        Route::get('/activity-logs', [AdminCommunityController::class, 'activityLogs']);
-        Route::get('/complaints', [AdminCommunityController::class, 'complaints']);
-        Route::get('/disaster-assistance', [AdminCommunityController::class, 'assistanceRequests']);
-        Route::get('/analytics/community', [AdminCommunityController::class, 'analytics']);
+        Route::post('/document-types', [DocumentTypeController::class, 'store']);
+
+        Route::controller(AdminController::class)->group(function () {
+            Route::get('/users', 'users');
+            Route::get('/dashboard', 'dashboard');
+            Route::get('/document-requests', 'documentRequests');
+            Route::get('/reports', 'reports');
+            Route::get('/notifications', 'notifications');
+        });
+
+        Route::controller(AdminUserController::class)->group(function () {
+            Route::post('/users', 'store');
+            Route::put('/users/{user}', 'update');
+            Route::delete('/users/{user}', 'destroy');
+        });
+
+        Route::controller(AdminCommunityController::class)->group(function () {
+            Route::get('/households', 'households');
+            Route::get('/announcements', 'announcements');
+            Route::post('/announcements', 'saveAnnouncement');
+            Route::put('/announcements/{announcement}', 'saveAnnouncement');
+            Route::delete('/announcements/{announcement}', 'deleteAnnouncement');
+            Route::get('/emergency-contacts', 'emergencyContacts');
+            Route::post('/emergency-contacts', 'saveEmergencyContact');
+            Route::put('/emergency-contacts/{contact}', 'saveEmergencyContact');
+            Route::delete('/emergency-contacts/{contact}', 'deleteEmergencyContact');
+            Route::get('/evacuation-centers', 'evacuationCenters');
+            Route::post('/evacuation-centers', 'saveEvacuationCenter');
+            Route::put('/evacuation-centers/{center}', 'saveEvacuationCenter');
+            Route::delete('/evacuation-centers/{center}', 'deleteEvacuationCenter');
+            Route::get('/settings', 'settings');
+            Route::put('/settings', 'saveSetting');
+            Route::get('/activity-logs', 'activityLogs');
+            Route::get('/complaints', 'complaints');
+            Route::get('/disaster-assistance', 'assistanceRequests');
+            Route::get('/analytics/community', 'analytics');
+        });
     });
 });

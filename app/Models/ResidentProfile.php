@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ResidentProfile extends Model
 {
     protected $fillable = [
-        'user_id', 'phone', 'birth_date', 'sex', 'civil_status', 'occupation', 'address', 'purok',
+        'user_id', 'last_name', 'first_name', 'middle_name', 'phone', 'birth_date', 'sex', 'civil_status', 'occupation', 'address', 'purok',
         'verification_status', 'verified_by', 'verified_at',
     ];
 

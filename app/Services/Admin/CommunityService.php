@@ -19,8 +19,14 @@ class CommunityService
 
     public function households(): array
     {
-        return Household::with(['head:id,name,email', 'members:id,name,email', 'verifier:id,name'])
-            ->latest()->get()->all();
+        return Household::with([
+            'head:id,name,email',
+            'members:id,name,email',
+            'verifier:id,name',
+        ])
+            ->latest()
+            ->get()
+            ->all();
     }
 
     public function announcements(): array
@@ -31,7 +37,10 @@ class CommunityService
     public function saveAnnouncement(User $admin, array $data, ?Announcement $announcement = null): Announcement
     {
         $data['author_id'] = $admin->id;
-        if (($data['status'] ?? $announcement?->status) === 'published' && ! ($announcement?->published_at)) {
+        if (
+            ($data['status'] ?? $announcement?->status) === 'published'
+            && ! ($announcement?->published_at)
+        ) {
             $data['published_at'] = now();
         }
         if ($announcement) {
@@ -75,7 +84,9 @@ class CommunityService
 
     public function evacuationCenters(): array
     {
-        return EvacuationCenter::latest()->get()->all();
+        return EvacuationCenter::latest()
+            ->get()
+            ->all();
     }
 
     public function saveEvacuationCenter(User $admin, array $data, ?EvacuationCenter $center = null): EvacuationCenter
@@ -125,26 +136,57 @@ class CommunityService
 
     public function assistanceRequests(): array
     {
-        return DisasterAssistanceRequest::with(['resident:id,name,email', 'assignee:id,name', 'evacuationCenter:id,name'])
-            ->latest()->get()->all();
+        return DisasterAssistanceRequest::with([
+            'resident:id,name,email',
+            'assignee:id,name',
+            'evacuationCenter:id,name',
+        ])
+            ->latest()
+            ->get()
+            ->all();
     }
 
     public function analytics(): array
     {
-        $responded = Complaint::whereNotNull('first_response_at')->get(['created_at', 'first_response_at']);
-        $resolved = Complaint::whereNotNull('resolved_at')->get(['created_at', 'resolved_at']);
+        $responded = Complaint::whereNotNull('first_response_at')
+            ->get(['created_at', 'first_response_at']);
+        $resolved = Complaint::whereNotNull('resolved_at')
+            ->get(['created_at', 'resolved_at']);
 
         return [
             'complaints_by_category' => Complaint::query()
-                ->selectRaw('COALESCE(final_category, ai_recommended_category, category) as category, COUNT(*) as total')
-                ->groupBy('category')->orderByDesc('total')->get()->all(),
+                ->selectRaw(
+                    'COALESCE(final_category, ai_recommended_category, category) as category, COUNT(*) as total',
+                )
+                ->groupByRaw('COALESCE(final_category, ai_recommended_category, category)')
+                ->orderByDesc('total')
+                ->get()
+                ->all(),
             'complaints_by_purok' => Complaint::query()
                 ->selectRaw("COALESCE(purok, 'Unspecified') as location, COUNT(*) as total")
-                ->groupBy('location')->orderByDesc('total')->get()->all(),
-            'complaints_by_date' => Complaint::query()->selectRaw('DATE(created_at) as date, COUNT(*) as total')
-                ->where('created_at', '>=', now()->subDays(30))->groupBy('date')->orderBy('date')->get()->all(),
-            'average_response_minutes' => $responded->isEmpty() ? 0 : (int) round($responded->avg(fn (Complaint $complaint): int => $complaint->created_at->diffInMinutes($complaint->first_response_at))),
-            'average_resolution_hours' => $resolved->isEmpty() ? 0 : (int) round($resolved->avg(fn (Complaint $complaint): int => $complaint->created_at->diffInHours($complaint->resolved_at))),
+                ->groupByRaw("COALESCE(purok, 'Unspecified')")
+                ->orderByDesc('total')
+                ->get()
+                ->all(),
+            'complaints_by_date' => Complaint::query()
+                ->selectRaw('DATE(created_at) as date, COUNT(*) as total')
+                ->where('created_at', '>=', now()->subDays(30))
+                ->groupByRaw('DATE(created_at)')
+                ->orderBy('date')
+                ->get()
+                ->all(),
+            'average_response_minutes' => $responded->isEmpty()
+                ? 0
+                : (int) round($responded->avg(
+                    fn (Complaint $complaint): int => $complaint->created_at
+                        ->diffInMinutes($complaint->first_response_at),
+                )),
+            'average_resolution_hours' => $resolved->isEmpty()
+                ? 0
+                : (int) round($resolved->avg(
+                    fn (Complaint $complaint): int => $complaint->created_at
+                        ->diffInHours($complaint->resolved_at),
+                )),
             'complaint_total' => Complaint::count(),
             'assistance_total' => DisasterAssistanceRequest::count(),
         ];

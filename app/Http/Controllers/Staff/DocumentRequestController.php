@@ -7,6 +7,7 @@ use App\Models\DocumentRequest;
 use App\Services\Staff\DocumentRequestService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class DocumentRequestController extends Controller
 {
@@ -34,5 +35,16 @@ class DocumentRequestController extends Controller
                 $validated,
             ),
         ]);
+    }
+
+    public function downloadDocument(DocumentRequest $documentRequest): BinaryFileResponse
+    {
+        $path = $this->documentRequestService->generatedDocumentAbsolutePath($documentRequest);
+
+        return response()->download(
+            $path,
+            $documentRequest->tracking_number.'.pdf',
+            ['Content-Type' => 'application/pdf'],
+        );
     }
 }
