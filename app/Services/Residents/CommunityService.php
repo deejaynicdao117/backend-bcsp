@@ -16,7 +16,10 @@ use Illuminate\Support\Str;
 
 class CommunityService
 {
-    public function __construct(private readonly ComplaintIntelligenceService $intelligence, private readonly ActivityLogService $activityLog) {}
+    public function __construct(
+        private readonly ComplaintIntelligenceService $intelligence,
+        private readonly ActivityLogService $activityLog,
+    ) {}
 
     public function profile(User $resident): array
     {
@@ -30,7 +33,10 @@ class CommunityService
     public function updateProfile(User $resident, array $data): ResidentProfile
     {
         return DB::transaction(function () use ($resident, $data): ResidentProfile {
-            $householdData = array_intersect_key($data, array_flip(['address', 'purok', 'household_code', 'relationship']));
+            $householdData = array_intersect_key(
+                $data,
+                array_flip(['address', 'purok', 'household_code', 'relationship']),
+            );
             unset($data['household_code'], $data['relationship']);
 
             $profile = ResidentProfile::updateOrCreate(['user_id' => $resident->id], $data);
@@ -64,8 +70,13 @@ class CommunityService
     {
         $analysis = $this->intelligence->analyze($data['subject'], $data['description']);
         $profile = $resident->residentProfile;
-        if (empty($data['location']) && empty($profile?->address)) $analysis['validation_flags'][] = 'location_missing';
-        if (! $resident->hasVerifiedEmail()) $analysis['validation_flags'][] = 'email_not_verified';
+        if (empty($data['location']) && empty($profile?->address)) {
+            $analysis['validation_flags'][] = 'location_missing';
+        }
+
+        if (! $resident->hasVerifiedEmail()) {
+            $analysis['validation_flags'][] = 'email_not_verified';
+        }
 
         return DB::transaction(function () use ($resident, $data, $analysis, $profile): Complaint {
             $complaint = Complaint::create([
@@ -119,8 +130,12 @@ class CommunityService
     {
         return Announcement::query()
             ->where('status', 'published')
-            ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
-            ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
+            ->where(fn ($query) => $query
+                ->whereNull('starts_at')
+                ->orWhere('starts_at', '<=', now()))
+            ->where(fn ($query) => $query
+                ->whereNull('ends_at')
+                ->orWhere('ends_at', '>=', now()))
             ->latest('published_at')
             ->get()
             ->all();

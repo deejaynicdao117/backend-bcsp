@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use App\Models\EmergencyContact;
 use App\Models\EvacuationCenter;
+use App\Models\DocumentType;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -49,6 +50,11 @@ class DatabaseSeeder extends Seeder
                 ],
             );
         }
+
+        DocumentType::firstOrCreate(
+            ['name' => 'Barangay Indigency'],
+            ['description' => 'Certificate confirming that a resident belongs to a low-income household.'],
+        );
 
         EmergencyContact::firstOrCreate(
             ['phone' => '911'],

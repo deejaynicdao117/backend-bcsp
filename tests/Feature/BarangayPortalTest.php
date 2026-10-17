@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Services\VerificationCodeMailer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class BarangayPortalTest extends TestCase
@@ -12,23 +14,54 @@ class BarangayPortalTest extends TestCase
 
     public function test_resident_can_register_and_login(): void
     {
+        $sentCode = null;
+        $mailer = $this->mock(VerificationCodeMailer::class);
+        $mailer->shouldReceive('send')
+            ->once()
+            ->withArgs(function (User $user, string $code) use (&$sentCode): bool {
+                $sentCode = $code;
+
+                return $user->email === 'maria@example.com'
+                    && strlen($code) === 6;
+            });
+
         $response = $this->postJson('/api/auth/register', [
-            'name' => 'Maria Santos',
-            'email' => 'maria@example.com',
+            'last_name' => 'Santos',
+            'first_name' => 'Maria',
+            'middle_name' => 'Luisa',
+            'sex' => 'female',
+            'email' => ' Maria@Example.com ',
             'password' => 'Password123',
             'password_confirmation' => 'Password123',
+            'role' => 'admin',
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonPath('user.role', 'resident');
+            ->assertJsonPath('email', 'maria@example.com')
+            ->assertJsonMissingPath('token');
 
         $this->assertDatabaseHas('users', [
             'email' => 'maria@example.com',
             'role' => 'resident',
+            'name' => 'Maria Luisa Santos',
+            'email_verified_at' => null,
+        ]);
+        $this->assertDatabaseHas('resident_profiles', [
+            'last_name' => 'Santos',
+            'first_name' => 'Maria',
+            'middle_name' => 'Luisa',
+            'sex' => 'female',
         ]);
 
-        $loginResponse = $this->postJson('/api/auth/login', [
+        $this->postJson('/api/auth/register/verify', [
             'email' => 'maria@example.com',
+            'code' => $sentCode,
+        ])->assertOk()
+            ->assertJsonPath('user.role', 'resident')
+            ->assertJsonStructure(['token', 'access_token', 'user']);
+
+        $loginResponse = $this->postJson('/api/auth/login', [
+            'email' => ' Maria@EXAMPLE.COM ',
             'password' => 'Password123',
         ]);
 
@@ -41,12 +74,53 @@ class BarangayPortalTest extends TestCase
             ->assertJsonPath('access_token', $loginResponse->json('token'));
     }
 
+    public function test_unverified_resident_cannot_log_in_and_bad_codes_are_rejected(): void
+    {
+        $sentCode = null;
+        $mailer = $this->mock(VerificationCodeMailer::class);
+        $mailer->shouldReceive('send')
+            ->once()
+            ->withArgs(function (User $user, string $code) use (&$sentCode): bool {
+                $sentCode = $code;
+
+                return true;
+            });
+
+        $this->postJson('/api/auth/register', [
+            'last_name' => 'User',
+            'first_name' => 'Resident',
+            'sex' => 'prefer_not_to_say',
+            'email' => 'resident@example.com',
+            'password' => 'Password123',
+            'password_confirmation' => 'Password123',
+        ])->assertCreated();
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'resident@example.com',
+            'password' => 'Password123',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('email');
+
+        $this->postJson('/api/auth/register/verify', [
+            'email' => 'resident@example.com',
+            'code' => $sentCode === '000000' ? '000001' : '000000',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('code');
+
+        $this->postJson('/api/auth/register/verify', [
+            'email' => 'resident@example.com',
+            'code' => $sentCode,
+        ])->assertOk();
+    }
+
     public function test_api_validation_errors_are_json_without_accept_header(): void
     {
         $this->post('/api/auth/register', [])
             ->assertUnprocessable()
             ->assertJsonValidationErrors([
-                'name',
+                'last_name',
+                'first_name',
+                'sex',
                 'email',
                 'password',
             ]);
@@ -80,6 +154,8 @@ class BarangayPortalTest extends TestCase
 
     public function test_resident_can_submit_document_request_and_staff_can_process_it(): void
     {
+        Storage::fake('local');
+
         $resident = User::factory()->create([
             'role' => 'resident',
         ]);
@@ -87,13 +163,21 @@ class BarangayPortalTest extends TestCase
         $staff = User::factory()->create([
             'role' => 'staff',
         ]);
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
 
-        $this->actingAs($staff, 'sanctum');
+        $this->actingAs($admin, 'sanctum');
 
-        $this->postJson('/api/document-types', [
+        $this->postJson('/api/admin/document-types', [
             'name' => 'Barangay Clearance',
             'description' => 'For local clearance requests',
         ])->assertStatus(201);
+
+        $this->actingAs($staff, 'sanctum')
+            ->postJson('/api/admin/document-types', [
+                'name' => 'Staff-created type',
+            ])->assertForbidden();
 
         $this->actingAs($resident, 'sanctum');
 
@@ -113,7 +197,19 @@ class BarangayPortalTest extends TestCase
         ]);
 
         $processingResponse->assertStatus(200)
-            ->assertJsonPath('data.status', 'approved');
+            ->assertJsonPath('data.status', 'approved')
+            ->assertJsonPath('data.generated_document_available', true);
+
+        $generatedDocument = 'document-requests/1/DOC-'.now()->format('Y').'-000001.pdf';
+        Storage::disk('local')->assertExists($generatedDocument);
+
+        $this->get('/api/staff/document-requests/1/document')
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->actingAs($resident, 'sanctum')
+            ->get('/api/staff/document-requests/1/document')
+            ->assertForbidden();
     }
 
     public function test_admin_can_login_and_fetch_users(): void
