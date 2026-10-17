@@ -19,6 +19,9 @@ class CommunityController extends Controller
     public function updateProfile(Request $request): JsonResponse
     {
         $data = $request->validate([
+            'last_name' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'first_name' => ['sometimes', 'nullable', 'string', 'max:100'],
+            'middle_name' => ['sometimes', 'nullable', 'string', 'max:100'],
             'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
             'birth_date' => ['sometimes', 'nullable', 'date', 'before:today'],
             'sex' => ['sometimes', 'nullable', 'string', 'max:30'],

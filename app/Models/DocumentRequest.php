@@ -14,7 +14,29 @@ class DocumentRequest extends Model
         'status',
         'remarks',
         'reviewed_by',
+        'generated_document_path',
+        'generated_document_at',
     ];
+
+    protected $hidden = [
+        'generated_document_path',
+    ];
+
+    protected $appends = [
+        'generated_document_available',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'generated_document_at' => 'datetime',
+        ];
+    }
+
+    public function getGeneratedDocumentAvailableAttribute(): bool
+    {
+        return filled($this->generated_document_path);
+    }
 
     public function user()
     {

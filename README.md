@@ -86,6 +86,24 @@ php artisan serve     # backend at http://localhost:8000
 npm run dev           # Vite asset server
 ```
 
+### Resident registration email
+
+Public sign-up creates resident accounts only. New residents receive a six-digit email code that expires after 10 minutes; the API issues a sign-in token only after that code is verified. Admin and staff accounts must be created from the admin user-management page.
+
+Set these values in `backend-bscp/.env` for your SMTP provider. For Gmail, use an app password rather than your normal account password:
+
+```dotenv
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_ENCRYPTION=tls
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-google-app-password
+MAIL_FROM_ADDRESS=your-email@gmail.com
+MAIL_FROM_NAME="Barangay Citizen Services Portal"
+```
+
+Restart the backend after changing mail settings. Do not commit real SMTP credentials.
+
 ### Common artisan commands
 
 ```bash
@@ -159,8 +177,11 @@ The Barangay Staff and Admin Module provides local officials with a central dash
 - Manage household records
 - Verify resident registration
 - Process document requests
+- Approve a document request to generate a private, printable PDF draft for staff download
 - Generate certificates
 - Track complaint resolutions
+
+Generated PDFs are stored on the private local disk and are downloadable only through the authenticated staff API. They are marked as drafts and require review, signature, and stamp from an authorized official before issuance.
 
 **System administrators** hold higher-level control to:
 
@@ -216,7 +237,7 @@ Laravel is accessible, powerful, and provides tools required for large, robust a
 
 ## Learning Laravel
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Laraver has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
 
 If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
 

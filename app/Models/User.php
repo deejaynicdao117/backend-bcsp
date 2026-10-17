@@ -18,17 +18,22 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'role',
+        'email_verification_code_hash',
+        'email_verification_code_expires_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'email_verification_code_hash',
+        'email_verification_code_expires_at',
     ];
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
+            'email_verification_code_expires_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
