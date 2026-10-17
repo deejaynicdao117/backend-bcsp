@@ -13,7 +13,15 @@ class UserManagementService
     {
         $data['password'] = Hash::make($data['password']);
 
-        return User::create($data);
+        $user = User::create($data);
+
+        // Accounts created by an administrator are treated as verified; self-registration
+        // still requires the resident to complete email verification.
+        if (($data['role'] ?? null) === 'resident') {
+            $user->forceFill(['email_verified_at' => now()])->save();
+        }
+
+        return $user;
     }
 
     public function update(User $user, array $data, User $actor): User

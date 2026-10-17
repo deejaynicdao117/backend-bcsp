@@ -12,10 +12,14 @@ use App\Models\Household;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\ActivityLogService;
+use App\Services\PortalNotificationService;
 
 class CommunityService
 {
-    public function __construct(private readonly ActivityLogService $activityLog) {}
+    public function __construct(
+        private readonly ActivityLogService $activityLog,
+        private readonly PortalNotificationService $notifications,
+    ) {}
 
     public function households(): array
     {
@@ -36,6 +40,7 @@ class CommunityService
 
     public function saveAnnouncement(User $admin, array $data, ?Announcement $announcement = null): Announcement
     {
+        $wasPublished = $announcement?->status === 'published';
         $data['author_id'] = $admin->id;
         if (
             ($data['status'] ?? $announcement?->status) === 'published'
@@ -49,6 +54,19 @@ class CommunityService
             $announcement = Announcement::create($data);
         }
         $this->activityLog->record($admin, 'announcement.saved', $announcement, ['status' => $announcement->status]);
+
+        if (
+            ! $wasPublished
+            && $announcement->status === 'published'
+        ) {
+            $this->notifications->sendToRoles(
+                ['resident'],
+                'announcement.published',
+                'New barangay announcement',
+                $announcement->title.': '.$announcement->body,
+                ['announcement_id' => $announcement->id],
+            );
+        }
 
         return $announcement->fresh(['author:id,name']);
     }

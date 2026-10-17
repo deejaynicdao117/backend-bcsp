@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\CommunityController as AdminCommunityController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DocumentTypeController;
+use App\Http\Controllers\PortalNotificationController;
 use App\Http\Controllers\Residents\CommunityController as ResidentCommunityController;
 use App\Http\Controllers\Residents\EmailVerificationController;
 use App\Http\Controllers\Residents\DocumentRequestController as ResidentDocumentRequestController;
@@ -29,6 +30,7 @@ Route::prefix('auth')->middleware('force.json')->group(function () {
 
 Route::middleware(['force.json', 'auth:sanctum'])->group(function () {
     Route::get('/user/account', [AuthController::class, 'me']);
+    Route::get('/notifications', [PortalNotificationController::class, 'index']);
 
     Route::controller(DocumentTypeController::class)
         ->prefix('document-types')

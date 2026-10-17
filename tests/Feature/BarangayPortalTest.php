@@ -281,4 +281,26 @@ class BarangayPortalTest extends TestCase
         $this->deleteJson("/api/admin/users/{$admin->id}")
             ->assertUnprocessable();
     }
+
+    public function test_admin_created_resident_is_verified_and_can_sign_in(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $created = $this->actingAs($admin, 'sanctum')
+            ->postJson('/api/admin/users', [
+                'name' => 'Admin Added Resident',
+                'email' => 'admin.added.resident@example.com',
+                'password' => 'Password123',
+                'role' => 'resident',
+            ])->assertCreated()
+                ->assertJsonPath('data.role', 'resident');
+
+        $this->assertNotNull(User::findOrFail($created->json('data.id'))->email_verified_at);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'admin.added.resident@example.com',
+            'password' => 'Password123',
+        ])->assertOk()
+            ->assertJsonPath('user.role', 'resident');
+    }
 }
