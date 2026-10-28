@@ -51,6 +51,7 @@ class CommunityService
     public function residentProfiles(): array
     {
         return ResidentProfile::with(['user:id,name,email', 'verifier:id,name'])
+            ->whereHas('user', fn ($query) => $query->where('role', 'resident'))
             ->latest()
             ->get()
             ->all();

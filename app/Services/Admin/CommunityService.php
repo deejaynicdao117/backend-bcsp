@@ -9,7 +9,6 @@ use App\Models\DisasterAssistanceRequest;
 use App\Models\EmergencyContact;
 use App\Models\EvacuationCenter;
 use App\Models\Household;
-use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\ActivityLogService;
 use App\Services\PortalNotificationService;
@@ -60,11 +59,12 @@ class CommunityService
             && $announcement->status === 'published'
         ) {
             $this->notifications->sendToRoles(
-                ['resident'],
+                ['resident', 'staff'],
                 'announcement.published',
                 'New barangay announcement',
                 $announcement->title.': '.$announcement->body,
                 ['announcement_id' => $announcement->id],
+                $admin->barangay_id,
             );
         }
 
@@ -123,23 +123,6 @@ class CommunityService
     {
         $center->delete();
         $this->activityLog->record($admin, 'evacuation_center.deleted', $center);
-    }
-
-    public function settings(): array
-    {
-        return SystemSetting::orderBy('group')->orderBy('key')->get()->all();
-    }
-
-    public function saveSetting(User $admin, string $key, mixed $value, string $group): SystemSetting
-    {
-        $setting = SystemSetting::updateOrCreate(['key' => $key], [
-            'value' => is_string($value) ? $value : json_encode($value, JSON_THROW_ON_ERROR),
-            'group' => $group,
-            'updated_by' => $admin->id,
-        ]);
-        $this->activityLog->record($admin, 'setting.updated', $setting, ['group' => $group]);
-
-        return $setting;
     }
 
     public function activityLogs(): array

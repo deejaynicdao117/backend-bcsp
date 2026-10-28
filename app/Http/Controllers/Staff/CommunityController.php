@@ -59,7 +59,7 @@ class CommunityController extends Controller
             'final_category' => ['sometimes', 'required', 'string', 'max:100'],
             'final_priority' => ['sometimes', 'required', Rule::in(['low', 'medium', 'high', 'critical'])],
             'staff_remarks' => ['nullable', 'string', 'max:5000'],
-            'assigned_to' => ['nullable', 'exists:users,id'],
+            'assigned_to' => ['nullable', Rule::exists('users', 'id')->where('barangay_id', $request->user()->barangay_id)],
         ]);
 
         return response()->json([
@@ -79,8 +79,8 @@ class CommunityController extends Controller
             'status' => ['required', Rule::in(['submitted', 'acknowledged', 'dispatched', 'resolved', 'closed'])],
             'priority' => ['sometimes', Rule::in(['low', 'medium', 'high', 'critical'])],
             'staff_remarks' => ['nullable', 'string', 'max:5000'],
-            'evacuation_center_id' => ['nullable', 'exists:evacuation_centers,id'],
-            'assigned_to' => ['nullable', 'exists:users,id'],
+            'evacuation_center_id' => ['nullable', Rule::exists('evacuation_centers', 'id')->where('barangay_id', $request->user()->barangay_id)],
+            'assigned_to' => ['nullable', Rule::exists('users', 'id')->where('barangay_id', $request->user()->barangay_id)],
         ]);
 
         return response()->json([

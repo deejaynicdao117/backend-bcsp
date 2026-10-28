@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Barangay;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,22 @@ class AuthController extends Controller
             'first_name' => ['required', 'string', 'max:100'],
             'middle_name' => ['nullable', 'string', 'max:100'],
             'sex' => ['required', Rule::in(['female', 'male', 'prefer_not_to_say'])],
+                'barangay_id' => [
+                    'required',
+                    'integer',
+                    function (string $attribute, mixed $value, \Closure $fail): void {
+                        $isSelectable = Barangay::query()
+                            ->whereKey($value)
+                            ->where('is_active', true)
+                            ->where('onboarding_status', 'approved')
+                            ->where('psgc_code', '<>', 'DEFAULT')
+                            ->exists();
+
+                        if (! $isSelectable) {
+                            $fail('Select an active Bulacan barangay.');
+                        }
+                    },
+                ],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'confirmed', 'min:8'],
         ]);
@@ -37,6 +54,11 @@ class AuthController extends Controller
 
     public function verifyRegistrationCode(Request $request): JsonResponse
     {
+        $request->merge([
+            'email' => Str::lower(trim((string) $request->input('email'))),
+            'code' => preg_replace('/\s+/', '', (string) $request->input('code')),
+        ]);
+
         $validated = $request->validate([
             'email' => ['required', 'email'],
             'code' => ['required', 'digits:6'],
@@ -50,6 +72,10 @@ class AuthController extends Controller
 
     public function resendRegistrationCode(Request $request): JsonResponse
     {
+        $request->merge([
+            'email' => Str::lower(trim((string) $request->input('email'))),
+        ]);
+
         $validated = $request->validate([
             'email' => ['required', 'email'],
         ]);
@@ -84,8 +110,13 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
+        $user = $request->user();
+
         return response()->json([
-            'user' => $request->user(),
+            'user' => [
+                ...$user->toArray(),
+                'barangay' => $user->barangay()->first(['id', 'name', 'municipality', 'province', 'logo_path', 'primary_color']),
+            ],
         ]);
     }
 }

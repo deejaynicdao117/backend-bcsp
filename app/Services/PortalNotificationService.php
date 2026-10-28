@@ -24,11 +24,18 @@ class PortalNotificationService
     }
 
     /** @param list<string> $roles */
-    public function sendToRoles(array $roles, string $type, string $title, string $message, array $data = []): void
+    public function sendToRoles(
+        array $roles,
+        string $type,
+        string $title,
+        string $message,
+        array $data = [],
+        ?int $barangayId = null,
+    ): void
     {
         User::query()
             ->whereIn('role', $roles)
-            ->whereNotNull('email')
+            ->when($barangayId !== null, fn ($query) => $query->where('barangay_id', $barangayId))
             ->orderBy('id')
             ->chunkById(100, function ($users) use ($type, $title, $message, $data): void {
                 foreach ($users as $user) {

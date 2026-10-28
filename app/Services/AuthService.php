@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Support\CurrentBarangay;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -11,13 +12,18 @@ use App\Services\VerificationCodeMailer;
 
 class AuthService
 {
-    public function __construct(private readonly VerificationCodeMailer $verificationMailer) {}
+    public function __construct(
+        private readonly VerificationCodeMailer $verificationMailer,
+        private readonly CurrentBarangay $currentBarangay,
+    ) {}
 
     public function register(array $data): array
     {
         $verificationCode = (string) random_int(100000, 999999);
         $user = null;
 
+        $this->currentBarangay->set((int) $data['barangay_id']);
+        try {
         DB::transaction(function () use ($data, $verificationCode, &$user): void {
             $user = User::create([
                 'name' => $this->fullName($data),
@@ -37,6 +43,9 @@ class AuthService
                 'sex' => $data['sex'],
             ]);
         });
+        } finally {
+            $this->currentBarangay->set(null);
+        }
 
         try {
             $this->verificationMailer->send($user, $verificationCode);
@@ -81,6 +90,7 @@ class AuthService
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
+                'barangay' => $user->barangay()->first(['id', 'name', 'municipality', 'province', 'logo_path', 'primary_color']),
             ],
         ];
     }
@@ -128,6 +138,7 @@ class AuthService
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->role,
+                'barangay' => $user->barangay()->first(['id', 'name', 'municipality', 'province', 'logo_path', 'primary_color']),
             ],
         ];
     }

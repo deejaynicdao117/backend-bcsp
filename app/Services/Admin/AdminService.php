@@ -48,7 +48,7 @@ class AdminService
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $statuses = ['pending', 'under_review', 'approved', 'rejected', 'ready_for_release', 'completed'];
+        $statuses = ['pending', 'under_review', 'approved', 'rejected', 'ready_for_pickup', 'released'];
         $requestsByStatus = collect($statuses)
             ->map(fn (string $status): array => [
                 'status' => $status,

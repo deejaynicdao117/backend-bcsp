@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToBarangay;
 use Illuminate\Database\Eloquent\Model;
 
 class EvacuationCenter extends Model
 {
+    use BelongsToBarangay;
+
     protected $fillable = [
         'name',
         'address',

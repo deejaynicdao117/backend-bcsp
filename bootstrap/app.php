@@ -13,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->api(prepend: [\App\Http\Middleware\SetCurrentBarangay::class]);
         $middleware->redirectGuestsTo(
             fn (Request $request): ?string => $request->is('api/*') ? null : '/',
         );
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'force.json' => \App\Http\Middleware\ForceJson::class,
+            'tenant' => \App\Http\Middleware\SetCurrentBarangay::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

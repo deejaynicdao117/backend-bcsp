@@ -10,7 +10,7 @@ class PortalNotificationMailer
 {
     public function send(User $user, string $subject, string $title, string $message): void
     {
-        if (app()->environment('testing')) {
+        if (app()->environment('testing') || blank($user->email)) {
             return;
         }
 
