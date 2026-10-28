@@ -413,6 +413,38 @@ class BarangayPortalTest extends TestCase
         ]);
     }
 
+    public function test_platform_admin_can_create_a_new_barangay_workspace(): void
+    {
+        $platformAdmin = User::factory()->create([
+            'role' => 'platform_admin',
+            'barangay_id' => Barangay::where('psgc_code', 'DEFAULT')->value('id'),
+        ]);
+
+        $this->actingAs($platformAdmin, 'sanctum')
+            ->postJson('/api/platform/barangays', [
+                'psgc_code' => 'TEST-NEW-001',
+                'name' => 'New Test Barangay',
+                'municipality' => 'Test Municipality',
+                'province' => 'Bulacan',
+                'contact_email' => 'newtest@example.com',
+                'contact_phone' => '09171234567',
+                'office_address' => 'Main Plaza, Test Municipality',
+                'primary_color' => '#1d4ed8',
+                'is_active' => true,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'New Test Barangay')
+            ->assertJsonPath('data.onboarding_status', 'approved')
+            ->assertJsonPath('data.is_active', true);
+
+        $this->assertDatabaseHas('barangays', [
+            'psgc_code' => 'TEST-NEW-001',
+            'name' => 'New Test Barangay',
+            'municipality' => 'Test Municipality',
+            'province' => 'Bulacan',
+        ]);
+    }
+
     public function test_platform_admin_can_list_bulacan_barangay_workspaces(): void
     {
         $barangay = Barangay::create([

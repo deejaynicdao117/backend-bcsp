@@ -142,6 +142,7 @@ Route::middleware(['force.json', 'auth:sanctum'])->group(function () {
 
 Route::middleware(['force.json', 'auth:sanctum', 'role:platform_admin'])->prefix('platform')->group(function () {
     Route::get('/barangays', [BarangayController::class, 'index']);
+    Route::post('/barangays', [BarangayController::class, 'store']);
     Route::post('/barangays/{psgcCode}', [BarangayController::class, 'save']);
     Route::put('/barangays/{barangay}/onboarding-review', [BarangayController::class, 'reviewOnboarding']);
     Route::post('/barangays/{barangay}/users', [BarangayController::class, 'createAdministrator']);
