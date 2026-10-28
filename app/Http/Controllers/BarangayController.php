@@ -39,6 +39,38 @@ class BarangayController extends Controller
         ]);
     }
 
+    public function store(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'psgc_code' => ['required', 'string', 'max:20', 'unique:barangays,psgc_code'],
+            'name' => ['required', 'string', 'max:150'],
+            'municipality' => ['required', 'string', 'max:150'],
+            'province' => ['sometimes', 'string', 'max:150'],
+            'contact_email' => ['nullable', 'email', 'max:255'],
+            'contact_phone' => ['nullable', 'string', 'max:40'],
+            'office_address' => ['nullable', 'string', 'max:255'],
+            'primary_color' => ['sometimes', 'required', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'is_active' => ['sometimes', 'boolean'],
+            'onboarding_status' => ['sometimes', Rule::in(['unrequested', 'pending', 'approved', 'declined'])],
+            'logo' => ['sometimes', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
+
+        $data['province'] ??= 'Bulacan';
+        $data['is_active'] = $data['is_active'] ?? true;
+        $data['onboarding_status'] = $data['onboarding_status'] ?? 'approved';
+
+        if ($request->hasFile('logo')) {
+            $data['logo_path'] = $request->file('logo')->store('barangay-logos', 'public');
+        }
+
+        $barangay = Barangay::create($data);
+
+        return response()->json([
+            'message' => 'Barangay workspace created.',
+            'data' => $barangay->fresh()->load('onboardingReviewer:id,name'),
+        ], 201);
+    }
+
     public function save(Request $request, string $psgcCode): JsonResponse
     {
         $barangay = Barangay::where('psgc_code', $psgcCode)->firstOrFail();
