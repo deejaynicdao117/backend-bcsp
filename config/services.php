@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'complaint_ai' => [
+        'enabled' => env('COMPLAINT_AI_ENABLED', false),
+        'api_key' => env('COMPLAINT_AI_API_KEY'),
+        'base_url' => env('COMPLAINT_AI_BASE_URL', 'https://api.openai.com/v1'),
+        'model' => env('COMPLAINT_AI_MODEL', 'gpt-4o-mini'),
+        'timeout' => (int) env('COMPLAINT_AI_TIMEOUT', 20),
+    ],
+
 ];

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToBarangay;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Household extends Model
 {
+    use BelongsToBarangay;
+
     protected $fillable = [
         'household_code', 'head_user_id', 'address', 'purok', 'member_count',
         'verification_status', 'verified_by', 'verified_at',

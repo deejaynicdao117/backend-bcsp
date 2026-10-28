@@ -41,6 +41,17 @@ class CommunityService
 
             $profile = ResidentProfile::updateOrCreate(['user_id' => $resident->id], $data);
 
+            if (array_intersect(['first_name', 'middle_name', 'last_name'], array_keys($data))) {
+                $name = collect([$profile->first_name, $profile->middle_name, $profile->last_name])
+                    ->map(fn (?string $part) => trim((string) $part))
+                    ->filter()
+                    ->implode(' ');
+
+                if ($name !== '') {
+                    $resident->update(['name' => $name]);
+                }
+            }
+
             if (count($householdData) > 0) {
                 $household = $resident->household()->first();
                 if (! $household) {
@@ -92,7 +103,7 @@ class CommunityService
                 'ai_recommended_category' => $analysis['category'],
                 'ai_recommended_priority' => $analysis['priority'],
                 'ai_summary' => $analysis['summary'],
-                'ai_engine' => 'local_keyword_rules_v1',
+                'ai_engine' => $analysis['engine'],
                 'validation_flags' => $analysis['validation_flags'],
                 'possible_duplicate' => $analysis['possible_duplicate'],
             ]);

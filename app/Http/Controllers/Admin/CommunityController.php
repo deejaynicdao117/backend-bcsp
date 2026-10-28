@@ -109,25 +109,6 @@ class CommunityController extends Controller
         return response()->json(['message' => 'Evacuation center deleted.']);
     }
 
-    public function settings(): JsonResponse
-    {
-        return response()->json(['data' => $this->community->settings()]);
-    }
-
-    public function saveSetting(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'key' => ['required', 'string', 'max:120'],
-            'value' => ['present'],
-            'group' => ['sometimes', 'string', 'max:80'],
-        ]);
-
-        return response()->json([
-            'message' => 'System setting saved.',
-            'data' => $this->community->saveSetting($request->user(), $data['key'], $data['value'], $data['group'] ?? 'general'),
-        ]);
-    }
-
     public function activityLogs(): JsonResponse
     {
         return response()->json(['data' => $this->community->activityLogs()]);

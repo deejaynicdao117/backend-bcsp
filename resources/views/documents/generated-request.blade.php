@@ -4,43 +4,32 @@
     <meta charset="utf-8">
     <title>{{ $documentType->name }}</title>
     <style>
-        @page { margin: 28mm 24mm; }
+        @page { margin: 22mm 24mm; }
         body { color: #182230; font-family: DejaVu Sans, sans-serif; font-size: 12px; line-height: 1.7; }
         .header { border-bottom: 2px solid #173b59; padding-bottom: 18px; text-align: center; }
         .header .republic { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; }
         .header h1 { color: #173b59; font-size: 19px; margin: 6px 0 2px; text-transform: uppercase; }
         .header p { color: #586879; margin: 0; }
-        .title { font-size: 17px; font-weight: bold; letter-spacing: 2px; margin: 34px 0 26px; text-align: center; text-transform: uppercase; }
-        .body-copy { font-size: 13px; line-height: 2; text-align: justify; }
+        .title { font-size: 17px; font-weight: bold; letter-spacing: 2px; margin: 28px 0 22px; text-align: center; text-transform: uppercase; }
+        .body-copy { font-size: 13px; line-height: 1.8; text-align: left; white-space: pre-line; }
         .resident-name { border-bottom: 1px solid #263645; display: inline-block; font-size: 15px; font-weight: bold; min-width: 250px; padding: 0 8px 2px; text-align: center; text-transform: uppercase; }
         .meta { background: #f1f5f8; border-left: 3px solid #2d6888; margin-top: 28px; padding: 12px 15px; }
-        .signature { margin-top: 70px; text-align: right; }
+        .signature { margin-top: 48px; text-align: right; }
         .signature-line { border-top: 1px solid #263645; display: inline-block; min-width: 210px; padding-top: 5px; text-align: center; }
-        .notice { border: 1px solid #d49b32; color: #785312; font-size: 10px; margin-top: 35px; padding: 9px 12px; text-align: center; }
+        .notice { border: 1px solid #d49b32; color: #785312; font-size: 10px; margin-top: 24px; padding: 9px 12px; text-align: center; }
         .footer { bottom: -15mm; color: #7b8794; font-size: 9px; position: fixed; text-align: center; width: 100%; }
     </style>
 </head>
 <body>
     <header class="header">
         <div class="republic">Republic of the Philippines</div>
-        <h1>{{ config('app.name', 'Barangay Citizen Services Portal') }}</h1>
-        <p>Office of the Barangay</p>
+        <h1>{{ $barangay?->name ?? config('app.name', 'Barangay Citizen Services Portal') }}</h1>
+        <p>{{ $barangay?->municipality ? $barangay->municipality.', ' : '' }}{{ $barangay?->province ?? 'Bulacan' }}</p>
     </header>
 
     <h2 class="title">{{ $documentType->name }}</h2>
 
-    <p class="body-copy">
-        TO WHOM IT MAY CONCERN:
-    </p>
-    <p class="body-copy">
-        This document is prepared for <span class="resident-name">{{ $resident->name }}</span>,
-        who requested a {{ $documentType->name }} from the barangay. The stated purpose of the request is:
-        <strong>{{ $documentRequest->purpose }}</strong>.
-    </p>
-    <p class="body-copy">
-        This document is issued upon the request of the above-named resident, subject to review and signature
-        by the authorized barangay official.
-    </p>
+    <div class="body-copy">{{ $body }}</div>
 
     <section class="meta">
         <strong>Request reference:</strong> {{ $documentRequest->tracking_number }}<br>

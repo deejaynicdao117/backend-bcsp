@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToBarangay;
 use Illuminate\Database\Eloquent\Model;
 
 class DocumentRequest extends Model
 {
+    use BelongsToBarangay;
+
     protected $fillable = [
         'user_id',
         'document_type_id',
@@ -13,6 +16,9 @@ class DocumentRequest extends Model
         'purpose',
         'status',
         'remarks',
+        'rejection_reason',
+        'ready_for_pickup_at',
+        'released_at',
         'reviewed_by',
         'generated_document_path',
         'generated_document_at',
@@ -30,6 +36,8 @@ class DocumentRequest extends Model
     {
         return [
             'generated_document_at' => 'datetime',
+            'ready_for_pickup_at' => 'date:Y-m-d',
+            'released_at' => 'date:Y-m-d',
         ];
     }
 

@@ -9,13 +9,16 @@ use App\Models\DisasterAssistanceRequest;
 use App\Models\EmergencyContact;
 use App\Models\EvacuationCenter;
 use App\Models\Household;
-use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\ActivityLogService;
+use App\Services\PortalNotificationService;
 
 class CommunityService
 {
-    public function __construct(private readonly ActivityLogService $activityLog) {}
+    public function __construct(
+        private readonly ActivityLogService $activityLog,
+        private readonly PortalNotificationService $notifications,
+    ) {}
 
     public function households(): array
     {
@@ -36,6 +39,7 @@ class CommunityService
 
     public function saveAnnouncement(User $admin, array $data, ?Announcement $announcement = null): Announcement
     {
+        $wasPublished = $announcement?->status === 'published';
         $data['author_id'] = $admin->id;
         if (
             ($data['status'] ?? $announcement?->status) === 'published'
@@ -49,6 +53,20 @@ class CommunityService
             $announcement = Announcement::create($data);
         }
         $this->activityLog->record($admin, 'announcement.saved', $announcement, ['status' => $announcement->status]);
+
+        if (
+            ! $wasPublished
+            && $announcement->status === 'published'
+        ) {
+            $this->notifications->sendToRoles(
+                ['resident', 'staff'],
+                'announcement.published',
+                'New barangay announcement',
+                $announcement->title.': '.$announcement->body,
+                ['announcement_id' => $announcement->id],
+                $admin->barangay_id,
+            );
+        }
 
         return $announcement->fresh(['author:id,name']);
     }
@@ -105,23 +123,6 @@ class CommunityService
     {
         $center->delete();
         $this->activityLog->record($admin, 'evacuation_center.deleted', $center);
-    }
-
-    public function settings(): array
-    {
-        return SystemSetting::orderBy('group')->orderBy('key')->get()->all();
-    }
-
-    public function saveSetting(User $admin, string $key, mixed $value, string $group): SystemSetting
-    {
-        $setting = SystemSetting::updateOrCreate(['key' => $key], [
-            'value' => is_string($value) ? $value : json_encode($value, JSON_THROW_ON_ERROR),
-            'group' => $group,
-            'updated_by' => $admin->id,
-        ]);
-        $this->activityLog->record($admin, 'setting.updated', $setting, ['group' => $group]);
-
-        return $setting;
     }
 
     public function activityLogs(): array

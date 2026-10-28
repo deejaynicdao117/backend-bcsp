@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToBarangay;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Complaint extends Model
 {
+    use BelongsToBarangay;
+
     protected $fillable = [
         'resident_id',
         'reference_number',

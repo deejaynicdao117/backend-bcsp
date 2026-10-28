@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\EmergencyContact;
 use App\Models\EvacuationCenter;
 use App\Models\DocumentType;
+use App\Models\Barangay;
+use App\Support\CurrentBarangay;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -18,12 +20,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(BulacanBarangaySeeder::class);
+        $defaultBarangayId = (int) Barangay::where('psgc_code', 'DEFAULT')->value('id');
+        app(CurrentBarangay::class)->set($defaultBarangayId);
+
         $demoUsers = [
             [
                 'name' => 'Admin User',
                 'email' => 'admin@example.com',
                 'password' => 'password',
-                'role' => 'admin',
+                'role' => 'platform_admin',
             ],
             [
                 'name' => 'Staff User',
@@ -46,6 +52,7 @@ class DatabaseSeeder extends Seeder
                     'name' => $demoUser['name'],
                     'password' => bcrypt($demoUser['password']),
                     'role' => $demoUser['role'],
+                    'barangay_id' => $defaultBarangayId,
                     'email_verified_at' => now(),
                 ],
             );
@@ -53,22 +60,22 @@ class DatabaseSeeder extends Seeder
 
         DocumentType::firstOrCreate(
             ['name' => 'Barangay Indigency'],
-            ['description' => 'Certificate confirming that a resident belongs to a low-income household.'],
+            ['description' => 'Certificate confirming that a resident belongs to a low-income household.', 'barangay_id' => $defaultBarangayId],
         );
 
         EmergencyContact::firstOrCreate(
             ['phone' => '911'],
-            ['name' => 'Emergency Hotline', 'office' => 'Barangay Emergency Response', 'availability' => '24/7'],
+            ['name' => 'Emergency Hotline', 'office' => 'Barangay Emergency Response', 'availability' => '24/7', 'barangay_id' => $defaultBarangayId],
         );
 
         EmergencyContact::firstOrCreate(
             ['phone' => '02-8123-4567'],
-            ['name' => 'Barangay Hall', 'office' => 'Barangay Office', 'availability' => 'Office hours'],
+            ['name' => 'Barangay Hall', 'office' => 'Barangay Office', 'availability' => 'Office hours', 'barangay_id' => $defaultBarangayId],
         );
 
         EvacuationCenter::firstOrCreate(
             ['name' => 'Barangay Covered Court'],
-            ['address' => 'Barangay Main Road', 'purok' => 'Central', 'capacity' => 250, 'status' => 'open'],
+            ['address' => 'Barangay Main Road', 'purok' => 'Central', 'capacity' => 250, 'status' => 'open', 'barangay_id' => $defaultBarangayId],
         );
     }
 }

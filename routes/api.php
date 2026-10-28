@@ -4,13 +4,18 @@ use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Admin\CommunityController as AdminCommunityController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BarangayController;
 use App\Http\Controllers\DocumentTypeController;
+use App\Http\Controllers\PortalNotificationController;
 use App\Http\Controllers\Residents\CommunityController as ResidentCommunityController;
 use App\Http\Controllers\Residents\EmailVerificationController;
 use App\Http\Controllers\Residents\DocumentRequestController as ResidentDocumentRequestController;
 use App\Http\Controllers\Staff\CommunityController as StaffCommunityController;
+use App\Http\Controllers\Staff\AnnouncementController as StaffAnnouncementController;
 use App\Http\Controllers\Staff\DocumentRequestController as StaffDocumentRequestController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/locations/bulacan/barangays', [BarangayController::class, 'locations']);
 
 Route::prefix('auth')->middleware('force.json')->group(function () {
     Route::controller(AuthController::class)->group(function () {
@@ -29,12 +34,19 @@ Route::prefix('auth')->middleware('force.json')->group(function () {
 
 Route::middleware(['force.json', 'auth:sanctum'])->group(function () {
     Route::get('/user/account', [AuthController::class, 'me']);
+    Route::get('/notifications', [PortalNotificationController::class, 'index']);
 
     Route::controller(DocumentTypeController::class)
         ->prefix('document-types')
         ->group(function () {
             Route::get('/', 'index');
         });
+
+    Route::prefix('admin')->middleware('role:admin')->group(function () {
+        Route::post('/document-types', [DocumentTypeController::class, 'store']);
+        Route::put('/document-types/{documentType}', [DocumentTypeController::class, 'update']);
+        Route::delete('/document-types/{documentType}', [DocumentTypeController::class, 'destroy']);
+    });
 
     Route::post('/auth/email/verification-notification', [EmailVerificationController::class, 'resend'])
         ->middleware('throttle:6,1');
@@ -58,10 +70,18 @@ Route::middleware(['force.json', 'auth:sanctum'])->group(function () {
         Route::controller(ResidentDocumentRequestController::class)->group(function () {
             Route::post('/document-requests', 'store');
             Route::get('/document-requests', 'index');
+            Route::get('/document-requests/{documentRequest}/preview', 'previewDocument');
         });
     });
 
     Route::prefix('staff')->middleware('role:staff')->group(function () {
+        Route::controller(StaffAnnouncementController::class)->prefix('announcements')->group(function () {
+            Route::get('/', 'index');
+            Route::post('/', 'store');
+            Route::put('/{announcement}', 'update');
+            Route::delete('/{announcement}', 'destroy');
+        });
+
         Route::controller(StaffDocumentRequestController::class)->group(function () {
             Route::get('/document-requests', 'index');
             Route::put('/document-requests/{documentRequest}', 'updateStatus');
@@ -112,12 +132,18 @@ Route::middleware(['force.json', 'auth:sanctum'])->group(function () {
             Route::post('/evacuation-centers', 'saveEvacuationCenter');
             Route::put('/evacuation-centers/{center}', 'saveEvacuationCenter');
             Route::delete('/evacuation-centers/{center}', 'deleteEvacuationCenter');
-            Route::get('/settings', 'settings');
-            Route::put('/settings', 'saveSetting');
             Route::get('/activity-logs', 'activityLogs');
             Route::get('/complaints', 'complaints');
             Route::get('/disaster-assistance', 'assistanceRequests');
             Route::get('/analytics/community', 'analytics');
         });
     });
+});
+
+Route::middleware(['force.json', 'auth:sanctum', 'role:platform_admin'])->prefix('platform')->group(function () {
+    Route::get('/barangays', [BarangayController::class, 'index']);
+    Route::post('/barangays/{psgcCode}', [BarangayController::class, 'save']);
+    Route::put('/barangays/{barangay}/onboarding-review', [BarangayController::class, 'reviewOnboarding']);
+    Route::post('/barangays/{barangay}/users', [BarangayController::class, 'createAdministrator']);
+    Route::post('/barangays/{barangay}/import-default-workspace', [BarangayController::class, 'importDefaultWorkspace']);
 });

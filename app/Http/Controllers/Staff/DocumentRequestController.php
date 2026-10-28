@@ -23,8 +23,11 @@ class DocumentRequestController extends Controller
     public function updateStatus(Request $request, DocumentRequest $documentRequest): JsonResponse
     {
         $validated = $request->validate([
-            'status' => ['required', 'in:pending,under_review,approved,rejected,ready_for_release,completed'],
+            'status' => ['required', 'in:pending,under_review,approved,rejected,ready_for_pickup,released'],
             'remarks' => ['nullable', 'string', 'max:1000'],
+            'rejection_reason' => ['required_if:status,rejected', 'nullable', 'string', 'max:1000'],
+            'ready_for_pickup_at' => ['required_if:status,ready_for_pickup', 'nullable', 'date'],
+            'released_at' => ['required_if:status,released', 'nullable', 'date'],
         ]);
 
         return response()->json([
