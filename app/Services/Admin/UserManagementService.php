@@ -2,6 +2,7 @@
 
 namespace App\Services\Admin;
 
+use App\Models\ResidentProfile;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -19,6 +20,10 @@ class UserManagementService
         // still requires the resident to complete email verification.
         if (($data['role'] ?? null) === 'resident') {
             $user->forceFill(['email_verified_at' => now()])->save();
+            ResidentProfile::updateOrCreate(
+                ['user_id' => $user->id],
+                ['verification_status' => 'verified', 'verified_at' => now()],
+            );
         }
 
         return $user;

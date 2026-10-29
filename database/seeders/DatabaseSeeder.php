@@ -2,11 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
+use App\Models\Barangay;
+use App\Models\DocumentType;
 use App\Models\EmergencyContact;
 use App\Models\EvacuationCenter;
-use App\Models\DocumentType;
-use App\Models\Barangay;
+use App\Models\User;
 use App\Support\CurrentBarangay;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;

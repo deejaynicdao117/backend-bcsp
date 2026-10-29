@@ -10,7 +10,18 @@ class AdminService
     public function users(): array
     {
         return User::query()
-            ->select('id', 'name', 'email', 'role')
+            ->leftJoin('resident_profiles', 'resident_profiles.user_id', '=', 'users.id')
+            ->where(function ($query): void {
+                $query->where('users.role', '!=', 'resident')
+                    ->orWhere('resident_profiles.verification_status', 'verified')
+                    ->orWhere(function ($residentQuery): void {
+                        $residentQuery->where('users.role', 'resident')
+                            ->whereNull('resident_profiles.id')
+                            ->whereNotNull('users.email_verified_at');
+                    });
+            })
+            ->select('users.id', 'users.name', 'users.email', 'users.role')
+            ->distinct()
             ->get()
             ->all();
     }
