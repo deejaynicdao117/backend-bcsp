@@ -8,10 +8,10 @@ use App\Http\Controllers\BarangayController;
 use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\PortalNotificationController;
 use App\Http\Controllers\Residents\CommunityController as ResidentCommunityController;
-use App\Http\Controllers\Residents\EmailVerificationController;
 use App\Http\Controllers\Residents\DocumentRequestController as ResidentDocumentRequestController;
-use App\Http\Controllers\Staff\CommunityController as StaffCommunityController;
+use App\Http\Controllers\Residents\EmailVerificationController;
 use App\Http\Controllers\Staff\AnnouncementController as StaffAnnouncementController;
+use App\Http\Controllers\Staff\CommunityController as StaffCommunityController;
 use App\Http\Controllers\Staff\DocumentRequestController as StaffDocumentRequestController;
 use Illuminate\Support\Facades\Route;
 
@@ -148,3 +148,4 @@ Route::middleware(['force.json', 'auth:sanctum', 'role:platform_admin'])->prefix
     Route::post('/barangays/{barangay}/users', [BarangayController::class, 'createAdministrator']);
     Route::post('/barangays/{barangay}/import-default-workspace', [BarangayController::class, 'importDefaultWorkspace']);
 });
+

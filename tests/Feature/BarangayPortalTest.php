@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use App\Models\Barangay;
 use App\Models\DocumentType;
-use App\Support\CurrentBarangay;
+use App\Models\User;
 use App\Services\VerificationCodeMailer;
+use App\Support\CurrentBarangay;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -23,7 +23,6 @@ class BarangayPortalTest extends TestCase
             'municipality' => 'Test Municipality',
             'province' => 'Bulacan',
             'is_active' => true,
-            'onboarding_status' => 'approved',
             'onboarding_status' => 'approved',
         ]);
     }
@@ -243,6 +242,11 @@ class BarangayPortalTest extends TestCase
                 'name' => 'Staff-created type',
             ])->assertForbidden();
 
+        $this->actingAs($staff, 'sanctum')
+            ->postJson('/api/admin/document-types', [
+                'name' => 'Staff-created type',
+            ])->assertForbidden();
+
         $this->actingAs($resident, 'sanctum');
 
         $requestResponse = $this->postJson('/api/resident/document-requests', [
@@ -369,12 +373,12 @@ class BarangayPortalTest extends TestCase
         $this->assertSame($secondBarangay->id, $secondResident->barangay_id);
         $this->assertSame($firstBarangay->id, $firstStaff->barangay_id);
         $this->assertSame($secondBarangay->id, $secondStaff->barangay_id);
-            $tenant = app(CurrentBarangay::class);
-            $tenant->set($firstBarangay->id);
-            $firstType = DocumentType::create(['name' => 'Clearance A']);
-            $tenant->set($secondBarangay->id);
-            $secondType = DocumentType::create(['name' => 'Clearance B']);
-            $tenant->set(null);
+        $tenant = app(CurrentBarangay::class);
+        $tenant->set($firstBarangay->id);
+        $firstType = DocumentType::create(['name' => 'Clearance A']);
+        $tenant->set($secondBarangay->id);
+        $secondType = DocumentType::create(['name' => 'Clearance B']);
+        $tenant->set(null);
 
         $firstResponse = $this->actingAs($firstResident, 'sanctum')
             ->postJson('/api/resident/document-requests', [
@@ -556,6 +560,21 @@ class BarangayPortalTest extends TestCase
         $admin = User::factory()->create([
             'role' => 'admin',
         ]);
+        $verifiedStaff = User::factory()->create([
+            'role' => 'staff',
+            'email_verified_at' => now(),
+        ]);
+        $verifiedResident = User::factory()->create([
+            'role' => 'resident',
+            'email_verified_at' => now(),
+        ]);
+        $verifiedResident->residentProfile()->create(['verification_status' => 'verified']);
+        $unverifiedResident = User::factory()->create([
+            'role' => 'resident',
+            'email_verified_at' => now(),
+        ]);
+        $unverifiedResident->residentProfile()->create(['verification_status' => 'unverified']);
+
         $loginResponse = $this->postJson('/api/auth/login', [
             'email' => $admin->email,
             'password' => 'password',
@@ -575,7 +594,11 @@ class BarangayPortalTest extends TestCase
                     'email',
                     'role',
                 ]],
-            ]);
+            ])
+            ->assertJsonCount(3, 'data')
+            ->assertJsonMissing(['data' => [[ 'email' => $unverifiedResident->email ]]])
+            ->assertJsonFragment(['email' => $verifiedResident->email])
+            ->assertJsonFragment(['email' => $verifiedStaff->email]);
     }
 
     public function test_admin_can_manage_users_and_view_dashboard_modules(): void

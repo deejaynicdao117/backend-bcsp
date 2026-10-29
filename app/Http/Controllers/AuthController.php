@@ -24,22 +24,22 @@ class AuthController extends Controller
             'first_name' => ['required', 'string', 'max:100'],
             'middle_name' => ['nullable', 'string', 'max:100'],
             'sex' => ['required', Rule::in(['female', 'male', 'prefer_not_to_say'])],
-                'barangay_id' => [
-                    'required',
-                    'integer',
-                    function (string $attribute, mixed $value, \Closure $fail): void {
-                        $isSelectable = Barangay::query()
-                            ->whereKey($value)
-                            ->where('is_active', true)
-                            ->where('onboarding_status', 'approved')
-                            ->where('psgc_code', '<>', 'DEFAULT')
-                            ->exists();
+            'barangay_id' => [
+                'required',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $isSelectable = Barangay::query()
+                        ->whereKey($value)
+                        ->where('is_active', true)
+                        ->where('onboarding_status', 'approved')
+                        ->where('psgc_code', '<>', 'DEFAULT')
+                        ->exists();
 
-                        if (! $isSelectable) {
-                            $fail('Select an active Bulacan barangay.');
-                        }
-                    },
-                ],
+                    if (! $isSelectable) {
+                        $fail('Select an active Bulacan barangay.');
+                    }
+                },
+            ],
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'confirmed', 'min:8'],
         ]);

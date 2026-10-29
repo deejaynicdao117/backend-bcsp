@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use App\Services\VerificationCodeMailer;
 
 class AuthService
 {
@@ -24,25 +23,26 @@ class AuthService
 
         $this->currentBarangay->set((int) $data['barangay_id']);
         try {
-        DB::transaction(function () use ($data, $verificationCode, &$user): void {
-            $user = User::create([
-                'name' => $this->fullName($data),
-                'email' => Str::lower($data['email']),
-                'password' => Hash::make($data['password']),
-                'role' => 'resident',
-                'email_verification_code_hash' => Hash::make($verificationCode),
-                'email_verification_code_expires_at' => now()->addMinutes(10),
-            ]);
+            DB::transaction(function () use ($data, $verificationCode, &$user): void {
+                $user = User::create([
+                    'name' => $this->fullName($data),
+                    'email' => Str::lower($data['email']),
+                    'password' => Hash::make($data['password']),
+                    'role' => 'resident',
+                    'barangay_id' => $data['barangay_id'],
+                    'email_verification_code_hash' => Hash::make($verificationCode),
+                    'email_verification_code_expires_at' => now()->addMinutes(10),
+                ]);
 
-            $user->residentProfile()->create([
-                'last_name' => trim($data['last_name']),
-                'first_name' => trim($data['first_name']),
-                'middle_name' => filled($data['middle_name'] ?? null)
-                    ? trim($data['middle_name'])
-                    : null,
-                'sex' => $data['sex'],
-            ]);
-        });
+                $user->residentProfile()->create([
+                    'last_name' => trim($data['last_name']),
+                    'first_name' => trim($data['first_name']),
+                    'middle_name' => filled($data['middle_name'] ?? null)
+                        ? trim($data['middle_name'])
+                        : null,
+                    'sex' => $data['sex'],
+                ]);
+            });
         } finally {
             $this->currentBarangay->set(null);
         }
@@ -116,7 +116,7 @@ class AuthService
     {
         $user = User::where('email', Str::lower(trim($credentials['email'])))->first();
 
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);

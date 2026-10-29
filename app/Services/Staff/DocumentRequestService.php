@@ -4,10 +4,10 @@ namespace App\Services\Staff;
 
 use App\Models\DocumentRequest;
 use App\Models\User;
+use App\Services\PortalNotificationService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use App\Services\PortalNotificationService;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class DocumentRequestService
