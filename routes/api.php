@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BarangayController;
 use App\Http\Controllers\DocumentTypeController;
 use App\Http\Controllers\PortalNotificationController;
+use App\Http\Controllers\PlatformController;
 use App\Http\Controllers\Residents\CommunityController as ResidentCommunityController;
 use App\Http\Controllers\Residents\DocumentRequestController as ResidentDocumentRequestController;
 use App\Http\Controllers\Residents\EmailVerificationController;
@@ -141,6 +142,10 @@ Route::middleware(['force.json', 'auth:sanctum'])->group(function () {
 });
 
 Route::middleware(['force.json', 'auth:sanctum', 'role:platform_admin'])->prefix('platform')->group(function () {
+    Route::get('/dashboard', [PlatformController::class, 'dashboard']);
+    Route::get('/reports', [PlatformController::class, 'reports']);
+    Route::get('/settings', [PlatformController::class, 'settings']);
+    Route::patch('/settings', [PlatformController::class, 'updateSettings']);
     Route::get('/barangays', [BarangayController::class, 'index']);
     Route::post('/barangays', [BarangayController::class, 'store']);
     Route::post('/barangays/{psgcCode}', [BarangayController::class, 'save']);

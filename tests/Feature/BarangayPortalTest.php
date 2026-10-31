@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\VerificationCodeMailer;
 use App\Support\CurrentBarangay;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -322,6 +323,27 @@ class BarangayPortalTest extends TestCase
         $this->actingAs($resident, 'sanctum')
             ->get('/api/staff/document-requests/1/document')
             ->assertForbidden();
+
+        $this->actingAs($staff, 'sanctum')
+            ->putJson('/api/staff/document-requests/1', [
+                'status' => 'rejected',
+                'rejection_reason' => 'The submitted information could not be verified.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'rejected')
+            ->assertJsonPath('data.generated_document_available', false);
+
+        Storage::disk('local')->assertMissing($generatedDocument);
+        $this->get('/api/staff/document-requests/1/document')->assertNotFound();
+
+        $this->actingAs($resident, 'sanctum')
+            ->getJson('/api/resident/document-requests')
+            ->assertOk()
+            ->assertJsonPath('data.0.status', 'rejected')
+            ->assertJsonPath('data.0.generated_document_available', false);
+
+        $this->get('/api/resident/document-requests/1/preview')
+            ->assertNotFound();
     }
 
     public function test_authenticated_barangay_users_cannot_view_or_update_other_barangays_data(): void
@@ -508,6 +530,103 @@ class BarangayPortalTest extends TestCase
             'password_confirmation' => 'Password123',
         ])->assertUnprocessable()
             ->assertJsonValidationErrors('barangay_id');
+    }
+
+    public function test_platform_dashboard_and_reports_aggregate_across_barangay_workspaces(): void
+    {
+        $defaultBarangayId = (int) Barangay::where('psgc_code', 'DEFAULT')->value('id');
+        $activeBarangay = Barangay::create([
+            'psgc_code' => 'PLATFORM-ACTIVE-001',
+            'name' => 'Active Test Barangay',
+            'municipality' => 'Test Municipality',
+            'province' => 'Bulacan',
+            'is_active' => true,
+            'onboarding_status' => 'approved',
+        ]);
+        Barangay::create([
+            'psgc_code' => 'PLATFORM-PENDING-001',
+            'name' => 'Pending Test Barangay',
+            'municipality' => 'Other Municipality',
+            'province' => 'Bulacan',
+            'is_active' => true,
+            'onboarding_status' => 'pending',
+        ]);
+        $platformAdmin = User::factory()->create([
+            'role' => 'platform_admin',
+            'barangay_id' => $defaultBarangayId,
+        ]);
+        $resident = User::factory()->create([
+            'role' => 'resident',
+            'barangay_id' => $activeBarangay->id,
+            'email_verified_at' => now(),
+        ]);
+        $now = now();
+        $documentTypeId = DB::table('document_types')->insertGetId([
+            'barangay_id' => $activeBarangay->id,
+            'name' => 'Platform Test Document',
+            'description' => null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        DB::table('document_requests')->insert([
+            'barangay_id' => $activeBarangay->id,
+            'user_id' => $resident->id,
+            'document_type_id' => $documentTypeId,
+            'tracking_number' => 'PLATFORM-TEST-REQUEST-001',
+            'purpose' => 'Platform aggregate test',
+            'status' => 'pending',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $this->actingAs($platformAdmin, 'sanctum')
+            ->getJson('/api/platform/dashboard')
+            ->assertOk()
+            ->assertJsonPath('data.total_barangays', 2)
+            ->assertJsonPath('data.active_barangays', 1)
+            ->assertJsonPath('data.pending_onboarding', 1)
+            ->assertJsonPath('data.total_users', 2)
+            ->assertJsonPath('data.resident_count', 1)
+            ->assertJsonPath('data.total_requests', 1)
+            ->assertJsonPath('data.pending_requests', 1);
+
+        $this->getJson('/api/platform/reports')
+            ->assertOk()
+            ->assertJsonPath('data.resident_registrations', 1)
+            ->assertJsonPath('data.total_requests', 1)
+            ->assertJsonPath('data.requests_by_status.0.status', 'pending')
+            ->assertJsonPath('data.requests_by_status.0.total', 1);
+    }
+
+    public function test_platform_settings_are_saved_and_restricted_to_platform_admins(): void
+    {
+        $platformAdmin = User::factory()->create(['role' => 'platform_admin']);
+        $settings = [
+            'portal_name' => 'Bulacan Services',
+            'support_email' => 'help@example.com',
+            'primary_color' => '#123abc',
+            'welcome_message' => 'Welcome to the portal.',
+            'allow_new_registrations' => false,
+            'emergency_notices' => true,
+            'public_announcements' => false,
+            'email_verification' => true,
+        ];
+
+        $this->actingAs($platformAdmin, 'sanctum')
+            ->patchJson('/api/platform/settings', $settings)
+            ->assertOk()
+            ->assertJsonPath('data.portal_name', 'Bulacan Services')
+            ->assertJsonPath('data.allow_new_registrations', false);
+
+        $this->getJson('/api/platform/settings')
+            ->assertOk()
+            ->assertJsonPath('data.support_email', 'help@example.com')
+            ->assertJsonPath('data.primary_color', '#123abc');
+
+        $barangayAdmin = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($barangayAdmin, 'sanctum')
+            ->getJson('/api/platform/settings')
+            ->assertForbidden();
     }
 
     public function test_admin_cannot_create_duplicate_document_types(): void

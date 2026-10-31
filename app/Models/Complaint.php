@@ -33,6 +33,7 @@ class Complaint extends Model
         'staff_remarks',
         'first_response_at',
         'resolved_at',
+        'attachment_url',
     ];
 
     protected function casts(): array

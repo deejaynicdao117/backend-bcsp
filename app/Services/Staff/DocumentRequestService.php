@@ -32,6 +32,9 @@ class DocumentRequestService
             'ready_for_pickup_at' => $documentRequest->ready_for_pickup_at?->toDateString(),
             'released_at' => $documentRequest->released_at?->toDateString(),
         ];
+        $rejectedDocumentPath = $data['status'] === 'rejected'
+            ? $documentRequest->generated_document_path
+            : null;
         $updatedRequest = DB::transaction(function () use ($staff, $documentRequest, $data): DocumentRequest {
             $documentRequest->update([
                 'status' => $data['status'],
@@ -39,6 +42,8 @@ class DocumentRequestService
                 'rejection_reason' => $data['rejection_reason'] ?? $documentRequest->rejection_reason,
                 'ready_for_pickup_at' => $data['ready_for_pickup_at'] ?? $documentRequest->ready_for_pickup_at,
                 'released_at' => $data['released_at'] ?? $documentRequest->released_at,
+                'generated_document_path' => $data['status'] === 'rejected' ? null : $documentRequest->generated_document_path,
+                'generated_document_at' => $data['status'] === 'rejected' ? null : $documentRequest->generated_document_at,
                 'reviewed_by' => $staff->id,
             ]);
 
@@ -51,6 +56,10 @@ class DocumentRequestService
 
             return $documentRequest->fresh()->load(['user', 'documentType', 'reviewer']);
         });
+
+        if ($rejectedDocumentPath) {
+            Storage::disk('local')->delete($rejectedDocumentPath);
+        }
 
         $detailsChanged = $previousDetails !== [
             'rejection_reason' => $updatedRequest->rejection_reason,
@@ -97,7 +106,9 @@ class DocumentRequestService
     {
         $path = $documentRequest->generated_document_path;
 
-        if (! $path || ! Storage::disk('local')->exists($path)) {
+        if (! in_array($documentRequest->status, ['approved', 'ready_for_pickup', 'released'], true)
+            || ! $path
+            || ! Storage::disk('local')->exists($path)) {
             throw new NotFoundHttpException('The generated document is not available. Approve the request first.');
         }
 

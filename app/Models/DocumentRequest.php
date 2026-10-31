@@ -43,7 +43,8 @@ class DocumentRequest extends Model
 
     public function getGeneratedDocumentAvailableAttribute(): bool
     {
-        return filled($this->generated_document_path);
+        return in_array($this->status, ['approved', 'ready_for_pickup', 'released'], true)
+            && filled($this->generated_document_path);
     }
 
     public function user()

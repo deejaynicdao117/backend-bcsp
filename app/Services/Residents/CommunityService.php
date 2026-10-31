@@ -12,6 +12,7 @@ use App\Models\ResidentProfile;
 use App\Models\User;
 use App\Services\ActivityLogService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 
 class CommunityService
@@ -77,7 +78,7 @@ class CommunityService
         return $resident->complaints()->latest()->get()->all();
     }
 
-    public function submitComplaint(User $resident, array $data): Complaint
+    public function submitComplaint(User $resident, array $data, ?UploadedFile $photo = null): Complaint
     {
         $analysis = $this->intelligence->analyze($data['subject'], $data['description']);
         $profile = $resident->residentProfile;
@@ -89,7 +90,9 @@ class CommunityService
             $analysis['validation_flags'][] = 'email_not_verified';
         }
 
-        return DB::transaction(function () use ($resident, $data, $analysis, $profile): Complaint {
+        $photoPath = $photo?->store('complaints', 'public');
+
+        return DB::transaction(function () use ($resident, $data, $analysis, $profile, $photoPath): Complaint {
             $complaint = Complaint::create([
                 'resident_id' => $resident->id,
                 'reference_number' => 'CMP-'.now()->format('Y').'-'.Str::upper(Str::random(8)),
@@ -106,6 +109,7 @@ class CommunityService
                 'ai_engine' => $analysis['engine'],
                 'validation_flags' => $analysis['validation_flags'],
                 'possible_duplicate' => $analysis['possible_duplicate'],
+                'attachment_url' => $photoPath,
             ]);
 
             $this->activityLog->record($resident, 'complaint.submitted', $complaint, [

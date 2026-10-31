@@ -48,11 +48,12 @@ class CommunityController extends Controller
             'description' => ['required', 'string', 'min:20', 'max:10000'],
             'location' => ['nullable', 'string', 'max:255'],
             'purok' => ['nullable', 'string', 'max:100'],
+            'photo' => ['sometimes', 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
 
         return response()->json([
             'message' => 'Complaint submitted for staff review.',
-            'data' => $this->community->submitComplaint($request->user(), $data),
+            'data' => $this->community->submitComplaint($request->user(), $data, $request->file('photo')),
         ], 201);
     }
 

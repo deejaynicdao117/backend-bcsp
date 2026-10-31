@@ -30,19 +30,7 @@ class DatabaseSeeder extends Seeder
                 'email' => 'admin@example.com',
                 'password' => 'password',
                 'role' => 'platform_admin',
-            ],
-            [
-                'name' => 'Staff User',
-                'email' => 'staff@example.com',
-                'password' => 'password',
-                'role' => 'staff',
-            ],
-            [
-                'name' => 'Resident User',
-                'email' => 'resident@example.com',
-                'password' => 'password',
-                'role' => 'resident',
-            ],
+            ]
         ];
 
         foreach ($demoUsers as $demoUser) {
