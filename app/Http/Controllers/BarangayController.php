@@ -179,4 +179,5 @@ class BarangayController extends Controller
 
         return response()->json(['message' => 'Legacy portal data moved into '.$barangay->name.'.']);
     }
+
 }
