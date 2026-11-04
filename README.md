@@ -40,7 +40,7 @@ npm run build
 
 > XAMPP must be running (MySQL on port 3306) before `php artisan migrate` or `php artisan serve`.
 
-> Shortcut: `composer setup` runs steps 1, 2, 4, and 5 — but it does **not** create the database, so do step 3 first.
+> Shortcut: `composer setup` runs steps 1, 2, 4, and 5 (including importing the official PSGC barangay directory) — but it does **not** create the database, so do step 3 first. The seeder needs an internet connection.
 
 ### Prerequisites
 

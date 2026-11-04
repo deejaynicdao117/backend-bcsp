@@ -100,14 +100,20 @@ class ComplaintIntelligenceService
 
         $priority = $category === 'fire_emergency' ? 'high' : (count($matches) > 0 ? 'medium' : 'low');
         $flags = [];
-        if (mb_strlen(trim($text)) < 20) $flags[] = 'description_may_be_too_short';
-        if (preg_match('/(.)\\1{7,}/u', $normalized)) $flags[] = 'repeated_character_anomaly';
+        if (mb_strlen(trim($text)) < 20) {
+            $flags[] = 'description_may_be_too_short';
+        }
+        if (preg_match('/(.)\\1{7,}/u', $normalized)) {
+            $flags[] = 'repeated_character_anomaly';
+        }
 
         $duplicate = Complaint::query()
             ->where('created_at', '>=', now()->subDays(30))
             ->whereRaw('LOWER(subject) = ?', [mb_strtolower(trim($subject))])
             ->exists();
-        if ($duplicate) $flags[] = 'possible_duplicate_report';
+        if ($duplicate) {
+            $flags[] = 'possible_duplicate_report';
+        }
 
         return [
             'category' => $category,

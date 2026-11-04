@@ -6,8 +6,8 @@ use App\Http\Controllers\Admin\CommunityController as AdminCommunityController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BarangayController;
 use App\Http\Controllers\DocumentTypeController;
-use App\Http\Controllers\PortalNotificationController;
 use App\Http\Controllers\PlatformController;
+use App\Http\Controllers\PortalNotificationController;
 use App\Http\Controllers\Residents\CommunityController as ResidentCommunityController;
 use App\Http\Controllers\Residents\DocumentRequestController as ResidentDocumentRequestController;
 use App\Http\Controllers\Residents\EmailVerificationController;
@@ -16,14 +16,15 @@ use App\Http\Controllers\Staff\CommunityController as StaffCommunityController;
 use App\Http\Controllers\Staff\DocumentRequestController as StaffDocumentRequestController;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/locations/barangays', [BarangayController::class, 'locations']);
 Route::get('/locations/bulacan/barangays', [BarangayController::class, 'locations']);
 
 Route::prefix('auth')->middleware('force.json')->group(function () {
     Route::controller(AuthController::class)->group(function () {
-        Route::post('/register', 'register');
+        Route::post('/register', 'register')->middleware('throttle:registration');
         Route::post('/register/verify', 'verifyRegistrationCode')->middleware('throttle:6,1');
         Route::post('/register/resend-code', 'resendRegistrationCode')->middleware('throttle:3,1');
-        Route::post('/login', 'login');
+        Route::post('/login', 'login')->middleware('throttle:login');
         Route::post('/logout', 'logout')->middleware('auth:sanctum');
         Route::get('/me', 'me')->middleware('auth:sanctum');
     });
@@ -150,7 +151,8 @@ Route::middleware(['force.json', 'auth:sanctum', 'role:platform_admin'])->prefix
     Route::post('/barangays', [BarangayController::class, 'store']);
     Route::post('/barangays/{psgcCode}', [BarangayController::class, 'save']);
     Route::put('/barangays/{barangay}/onboarding-review', [BarangayController::class, 'reviewOnboarding']);
+    Route::get('/barangays/{barangay}/users', [BarangayController::class, 'workspaceUsers']);
     Route::post('/barangays/{barangay}/users', [BarangayController::class, 'createAdministrator']);
-    Route::post('/barangays/{barangay}/import-default-workspace', [BarangayController::class, 'importDefaultWorkspace']);
+    Route::put('/barangays/{barangay}/users/{userId}', [BarangayController::class, 'updateWorkspaceUser']);
+    Route::delete('/barangays/{barangay}/users/{userId}', [BarangayController::class, 'deleteWorkspaceUser']);
 });
-

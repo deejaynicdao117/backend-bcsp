@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\PortalNotification;
 use App\Models\User;
-use App\Services\PortalNotificationMailer;
 
 class PortalNotificationService
 {
@@ -31,8 +30,7 @@ class PortalNotificationService
         string $message,
         array $data = [],
         ?int $barangayId = null,
-    ): void
-    {
+    ): void {
         User::query()
             ->whereIn('role', $roles)
             ->when($barangayId !== null, fn ($query) => $query->where('barangay_id', $barangayId))

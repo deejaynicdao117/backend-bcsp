@@ -12,5 +12,8 @@ class SystemSetting extends Model
 
     protected $fillable = ['key', 'value', 'group', 'updated_by'];
 
-    public function updater(): BelongsTo { return $this->belongsTo(User::class, 'updated_by'); }
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
 }

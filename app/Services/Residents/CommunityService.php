@@ -11,8 +11,8 @@ use App\Models\Household;
 use App\Models\ResidentProfile;
 use App\Models\User;
 use App\Services\ActivityLogService;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class CommunityService
