@@ -28,14 +28,29 @@ class AdminService
 
     public function dashboard(): array
     {
+        $monthStart = now()->startOfMonth();
+        $userStats = User::query()
+            ->selectRaw('COUNT(*) AS total_users')
+            ->selectRaw("SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) AS admin_count")
+            ->selectRaw("SUM(CASE WHEN role = 'staff' THEN 1 ELSE 0 END) AS staff_count")
+            ->selectRaw("SUM(CASE WHEN role = 'resident' THEN 1 ELSE 0 END) AS resident_count")
+            ->toBase()
+            ->first();
+        $requestStats = DocumentRequest::query()
+            ->selectRaw('COUNT(*) AS total_requests')
+            ->selectRaw("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_requests")
+            ->selectRaw('SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS requests_this_month', [$monthStart])
+            ->toBase()
+            ->first();
+
         return [
-            'total_users' => User::count(),
-            'admin_count' => User::where('role', 'admin')->count(),
-            'staff_count' => User::where('role', 'staff')->count(),
-            'resident_count' => User::where('role', 'resident')->count(),
-            'total_requests' => DocumentRequest::count(),
-            'pending_requests' => DocumentRequest::where('status', 'pending')->count(),
-            'requests_this_month' => DocumentRequest::where('created_at', '>=', now()->startOfMonth())->count(),
+            'total_users' => (int) ($userStats->total_users ?? 0),
+            'admin_count' => (int) ($userStats->admin_count ?? 0),
+            'staff_count' => (int) ($userStats->staff_count ?? 0),
+            'resident_count' => (int) ($userStats->resident_count ?? 0),
+            'total_requests' => (int) ($requestStats->total_requests ?? 0),
+            'pending_requests' => (int) ($requestStats->pending_requests ?? 0),
+            'requests_this_month' => (int) ($requestStats->requests_this_month ?? 0),
             'recent_requests' => DocumentRequest::with([
                 'user:id,name',
                 'documentType:id,name',
@@ -54,34 +69,43 @@ class AdminService
 
     public function reports(): array
     {
-        $statusCounts = DocumentRequest::query()
-            ->selectRaw('status, COUNT(*) as total')
+        $monthStart = now()->startOfMonth();
+        $months = collect(range(5, 0))->map(fn (int $monthsAgo) => $monthStart->copy()->subMonths($monthsAgo));
+        $monthlyExpressions = [];
+        $monthlyBindings = [];
+        foreach ($months as $index => $month) {
+            $monthlyExpressions[] = "SUM(CASE WHEN created_at >= ? AND created_at < ? THEN 1 ELSE 0 END) AS month_{$index}";
+            $monthlyBindings[] = $month;
+            $monthlyBindings[] = $month->copy()->addMonth();
+        }
+        $requestRows = DocumentRequest::query()
+            ->selectRaw('status, COUNT(*) AS total, '.implode(', ', $monthlyExpressions), $monthlyBindings)
             ->groupBy('status')
-            ->pluck('total', 'status');
+            ->toBase()
+            ->get();
+        $statusCounts = $requestRows->keyBy('status');
 
         $statuses = ['pending', 'under_review', 'approved', 'rejected', 'ready_for_pickup', 'released'];
-        $requestsByStatus = collect($statuses)
+        $statuses = collect($statuses)
+            ->merge($requestRows->pluck('status'))
+            ->unique()
+            ->values();
+
+        $requestsByStatus = $statuses
             ->map(fn (string $status): array => [
                 'status' => $status,
-                'total' => (int) ($statusCounts[$status] ?? 0),
+                'total' => (int) ($statusCounts->get($status)->total ?? 0),
             ])->all();
 
-        $monthlyRequests = collect(range(5, 0))
-            ->map(function (int $monthsAgo): array {
-                $month = now()->startOfMonth()->subMonths($monthsAgo);
-
-                return [
-                    'month' => $month->format('M'),
-                    'total' => DocumentRequest::whereYear('created_at', $month->year)
-                        ->whereMonth('created_at', $month->month)
-                        ->count(),
-                ];
-            })->all();
+        $monthlyRequests = $months->values()->map(fn ($month, int $index): array => [
+            'month' => $month->format('M'),
+            'total' => (int) $requestRows->sum(fn (object $row): int => (int) $row->{'month_'.$index}),
+        ])->all();
 
         return [
             'requests_by_status' => $requestsByStatus,
             'monthly_requests' => $monthlyRequests,
-            'total_requests' => DocumentRequest::count(),
+            'total_requests' => (int) $requestRows->sum(fn (object $row): int => (int) $row->total),
         ];
     }
 

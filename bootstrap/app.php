@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\ForceJson;
+use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\SetCurrentBarangay;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,20 +16,20 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->api(prepend: [\App\Http\Middleware\SetCurrentBarangay::class]);
+        $middleware->api(prepend: [SetCurrentBarangay::class]);
         $middleware->redirectGuestsTo(
             fn (Request $request): ?string => $request->is('api/*') ? null : '/',
         );
 
         $middleware->alias([
-            'role' => \App\Http\Middleware\RoleMiddleware::class,
-            'force.json' => \App\Http\Middleware\ForceJson::class,
-            'tenant' => \App\Http\Middleware\SetCurrentBarangay::class,
+            'role' => RoleMiddleware::class,
+            'force.json' => ForceJson::class,
+            'tenant' => SetCurrentBarangay::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request, \Throwable $exception): bool => $request->is('api/*')
+            fn (Request $request, Throwable $exception): bool => $request->is('api/*')
                 || $request->expectsJson(),
         );
     })->create();

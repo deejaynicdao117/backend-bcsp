@@ -2,11 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Announcement;
-use App\Models\EmergencyContact;
-use App\Models\EvacuationCenter;
 use App\Models\Household;
-use App\Models\PortalNotification;
 use App\Models\User;
 use App\Services\PortalNotificationMailer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -143,13 +139,78 @@ class CommunityPortalTest extends TestCase
             'capacity' => 100,
             'status' => 'open',
         ])->assertCreated();
-        $this->putJson('/api/admin/settings', ['key' => 'portal.banner', 'value' => 'Ready', 'group' => 'portal'])->assertOk();
         $this->getJson('/api/admin/activity-logs')->assertOk();
 
         $this->actingAs($resident, 'sanctum');
         $this->getJson('/api/community/announcements')->assertOk()->assertJsonCount(1, 'data');
         $this->getJson('/api/community/emergency-contacts')->assertOk()->assertJsonCount(1, 'data');
         $this->getJson('/api/community/evacuation-centers')->assertOk()->assertJsonCount(1, 'data');
+    }
+
+    public function test_staff_can_only_assign_complaints_and_assistance_to_staff(): void
+    {
+        $resident = User::factory()->create(['role' => 'resident']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff']);
+
+        $complaintId = $this->actingAs($resident, 'sanctum')
+            ->postJson('/api/resident/complaints', [
+                'subject' => 'Missed garbage collection',
+                'description' => 'Garbage has not been collected on our street for several days.',
+            ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $assistanceId = $this->postJson('/api/resident/disaster-assistance', [
+            'incident_type' => 'Flood',
+            'description' => 'Flood water is entering our home and we need assistance.',
+            'location' => '12 Community Road',
+        ])
+            ->assertCreated()
+            ->json('data.id');
+
+        $this->actingAs($staff, 'sanctum')
+            ->putJson("/api/staff/complaints/{$complaintId}", [
+                'status' => 'under_review',
+                'assigned_to' => $admin->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_to');
+
+        $this->putJson("/api/staff/complaints/{$complaintId}", [
+            'status' => 'under_review',
+            'assigned_to' => $resident->id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_to');
+
+        $this->putJson("/api/staff/complaints/{$complaintId}", [
+            'status' => 'under_review',
+            'assigned_to' => $staff->id,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.assigned_to', $staff->id);
+
+        $this->putJson("/api/staff/disaster-assistance/{$assistanceId}", [
+            'status' => 'acknowledged',
+            'assigned_to' => $admin->id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_to');
+
+        $this->putJson("/api/staff/disaster-assistance/{$assistanceId}", [
+            'status' => 'acknowledged',
+            'assigned_to' => $resident->id,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('assigned_to');
+
+        $this->putJson("/api/staff/disaster-assistance/{$assistanceId}", [
+            'status' => 'acknowledged',
+            'assigned_to' => $staff->id,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.assigned_to', $staff->id);
     }
 
     public function test_staff_resident_list_excludes_profiles_belonging_to_non_residents(): void

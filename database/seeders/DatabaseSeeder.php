@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->call(BulacanBarangaySeeder::class);
+        $this->call(BulacanDatabaseSeeder::class);
         $defaultBarangayId = (int) Barangay::where('psgc_code', 'DEFAULT')->value('id');
         app(CurrentBarangay::class)->set($defaultBarangayId);
 
@@ -30,7 +30,7 @@ class DatabaseSeeder extends Seeder
                 'email' => 'admin@example.com',
                 'password' => 'password',
                 'role' => 'platform_admin',
-            ]
+            ],
         ];
 
         foreach ($demoUsers as $demoUser) {

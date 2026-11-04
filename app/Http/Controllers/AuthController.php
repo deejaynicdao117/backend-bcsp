@@ -36,7 +36,7 @@ class AuthController extends Controller
                         ->exists();
 
                     if (! $isSelectable) {
-                        $fail('Select an active Bulacan barangay.');
+                        $fail('Select an active barangay.');
                     }
                 },
             ],

@@ -47,6 +47,7 @@ class CommunityController extends Controller
     public function deleteAnnouncement(Request $request, Announcement $announcement): JsonResponse
     {
         $this->community->deleteAnnouncement($request->user(), $announcement);
+
         return response()->json(['message' => 'Announcement deleted.']);
     }
 
@@ -75,6 +76,7 @@ class CommunityController extends Controller
     public function deleteEmergencyContact(Request $request, EmergencyContact $contact): JsonResponse
     {
         $this->community->deleteEmergencyContact($request->user(), $contact);
+
         return response()->json(['message' => 'Emergency contact deleted.']);
     }
 
@@ -106,6 +108,7 @@ class CommunityController extends Controller
     public function deleteEvacuationCenter(Request $request, EvacuationCenter $center): JsonResponse
     {
         $this->community->deleteEvacuationCenter($request->user(), $center);
+
         return response()->json(['message' => 'Evacuation center deleted.']);
     }
 

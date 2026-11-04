@@ -3,9 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Barangay;
-use App\Models\DocumentRequest;
 use App\Models\SystemSetting;
-use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,70 +23,99 @@ class PlatformController extends Controller
 
     public function dashboard(): JsonResponse
     {
-        $barangays = Barangay::query()->where('psgc_code', '!=', 'DEFAULT');
-        $users = User::withoutGlobalScope('barangay');
-        $requests = DocumentRequest::withoutGlobalScope('barangay');
+        $province = 'Bulacan';
+        $monthStart = now()->startOfMonth();
+        $barangays = DB::table('barangays')
+            ->where('province', $province)
+            ->where('psgc_code', '!=', 'DEFAULT')
+            ->selectRaw('COUNT(*) AS total_barangays')
+            ->selectRaw("SUM(CASE WHEN is_active = 1 AND onboarding_status = 'approved' THEN 1 ELSE 0 END) AS active_barangays")
+            ->selectRaw("SUM(CASE WHEN onboarding_status = 'pending' THEN 1 ELSE 0 END) AS pending_onboarding")
+            ->first();
+        $users = DB::table('users')
+            ->join('barangays', 'barangays.id', '=', 'users.barangay_id')
+            ->where('barangays.province', $province)
+            ->selectRaw('COUNT(*) AS total_users')
+            ->selectRaw("SUM(CASE WHEN users.role = 'resident' THEN 1 ELSE 0 END) AS resident_count")
+            ->first();
+        $requests = DB::table('document_requests')
+            ->join('barangays', 'barangays.id', '=', 'document_requests.barangay_id')
+            ->where('barangays.province', $province)
+            ->selectRaw('COUNT(*) AS total_requests')
+            ->selectRaw("SUM(CASE WHEN document_requests.status IN ('pending', 'under_review') THEN 1 ELSE 0 END) AS pending_requests")
+            ->selectRaw('SUM(CASE WHEN document_requests.created_at >= ? THEN 1 ELSE 0 END) AS requests_this_month', [$monthStart])
+            ->first();
 
         return response()->json(['data' => [
-            'total_barangays' => (clone $barangays)->count(),
-            'active_barangays' => (clone $barangays)
-                ->where('is_active', true)
-                ->where('onboarding_status', 'approved')
-                ->count(),
-            'pending_onboarding' => (clone $barangays)->where('onboarding_status', 'pending')->count(),
-            'total_users' => (clone $users)->count(),
-            'resident_count' => (clone $users)->where('role', 'resident')->count(),
-            'total_requests' => (clone $requests)->count(),
-            'pending_requests' => (clone $requests)->whereIn('status', ['pending', 'under_review'])->count(),
-            'requests_this_month' => (clone $requests)->where('created_at', '>=', now()->startOfMonth())->count(),
+            'total_barangays' => (int) ($barangays->total_barangays ?? 0),
+            'active_barangays' => (int) ($barangays->active_barangays ?? 0),
+            'pending_onboarding' => (int) ($barangays->pending_onboarding ?? 0),
+            'total_users' => (int) ($users->total_users ?? 0),
+            'resident_count' => (int) ($users->resident_count ?? 0),
+            'total_requests' => (int) ($requests->total_requests ?? 0),
+            'pending_requests' => (int) ($requests->pending_requests ?? 0),
+            'requests_this_month' => (int) ($requests->requests_this_month ?? 0),
         ]]);
     }
 
     public function reports(): JsonResponse
     {
-        $requests = DocumentRequest::withoutGlobalScope('barangay');
-        $users = User::withoutGlobalScope('barangay');
-        $barangays = Barangay::query()->where('psgc_code', '!=', 'DEFAULT');
+        $province = 'Bulacan';
+        $now = now();
+        $monthStart = $now->copy()->startOfMonth();
+        $months = collect(range(5, 0))->map(fn (int $monthsAgo) => $monthStart->copy()->subMonths($monthsAgo));
+        $barangays = DB::table('barangays')
+            ->where('province', $province)
+            ->where('psgc_code', '!=', 'DEFAULT')
+            ->selectRaw('COUNT(*) AS total_barangays')
+            ->selectRaw("SUM(CASE WHEN is_active = 1 AND onboarding_status = 'approved' THEN 1 ELSE 0 END) AS active_barangays")
+            ->selectRaw("SUM(CASE WHEN onboarding_status = 'pending' THEN 1 ELSE 0 END) AS pending_onboarding")
+            ->first();
+        $users = DB::table('users')
+            ->join('barangays', 'barangays.id', '=', 'users.barangay_id')
+            ->where('barangays.province', $province)
+            ->where('users.role', 'resident')
+            ->selectRaw('COUNT(*) AS resident_registrations')
+            ->selectRaw('SUM(CASE WHEN users.created_at >= ? THEN 1 ELSE 0 END) AS resident_registrations_this_month', [$monthStart])
+            ->first();
+        $monthlyExpressions = [];
+        $monthlyBindings = [];
+        foreach ($months as $index => $month) {
+            $monthlyExpressions[] = "SUM(CASE WHEN document_requests.created_at >= ? AND document_requests.created_at < ? THEN 1 ELSE 0 END) AS month_{$index}";
+            $monthlyBindings[] = $month;
+            $monthlyBindings[] = $month->copy()->addMonth();
+        }
+        $requestStatuses = DB::table('document_requests')
+            ->join('barangays', 'barangays.id', '=', 'document_requests.barangay_id')
+            ->where('barangays.province', $province)
+            ->selectRaw('document_requests.status, COUNT(*) AS total, '.implode(', ', $monthlyExpressions), $monthlyBindings)
+            ->groupBy('document_requests.status')
+            ->get();
         $statuses = ['pending', 'under_review', 'approved', 'rejected', 'ready_for_pickup', 'released'];
-        $statusCounts = (clone $requests)
-            ->selectRaw('status, COUNT(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
-
-        $monthlyRequests = collect(range(5, 0))
-            ->map(function (int $monthsAgo) use ($requests): array {
-                $month = now()->startOfMonth()->subMonths($monthsAgo);
-
-                return [
-                    'month' => $month->format('M'),
-                    'total' => (clone $requests)
-                        ->whereYear('created_at', $month->year)
-                        ->whereMonth('created_at', $month->month)
-                        ->count(),
-                ];
-            })->all();
-
-        $totalRequests = (clone $requests)->count();
-        $closedRequests = (int) ($statusCounts['released'] ?? 0) + (int) ($statusCounts['rejected'] ?? 0);
+        $statuses = collect($statuses)
+            ->merge($requestStatuses->pluck('status'))
+            ->unique()
+            ->values();
+        $statusCounts = $requestStatuses->keyBy('status');
+        $totalRequests = (int) $requestStatuses->sum(fn (object $row): int => (int) $row->total);
+        $closedRequests = (int) ($statusCounts->get('released')->total ?? 0) + (int) ($statusCounts->get('rejected')->total ?? 0);
+        $monthlyRequests = $months->values()->map(fn ($month, int $index): array => [
+            'month' => $month->format('M'),
+            'total' => (int) $requestStatuses->sum(fn (object $row): int => (int) $row->{'month_'.$index}),
+        ])->all();
 
         return response()->json(['data' => [
-            'total_barangays' => (clone $barangays)->count(),
-            'active_barangays' => (clone $barangays)
-                ->where('is_active', true)
-                ->where('onboarding_status', 'approved')
-                ->count(),
-            'pending_onboarding' => (clone $barangays)->where('onboarding_status', 'pending')->count(),
-            'resident_registrations' => (clone $users)->where('role', 'resident')->count(),
-            'resident_registrations_this_month' => (clone $users)
-                ->where('role', 'resident')
-                ->where('created_at', '>=', now()->startOfMonth())
-                ->count(),
+            'total_barangays' => (int) ($barangays->total_barangays ?? 0),
+            'active_barangays' => (int) ($barangays->active_barangays ?? 0),
+            'pending_onboarding' => (int) ($barangays->pending_onboarding ?? 0),
+            'resident_registrations' => (int) ($users->resident_registrations ?? 0),
+            'resident_registrations_this_month' => (int) ($users->resident_registrations_this_month ?? 0),
             'total_requests' => $totalRequests,
             'closed_request_percent' => $totalRequests > 0 ? (int) round(($closedRequests / $totalRequests) * 100) : 0,
-            'requests_by_status' => collect($statuses)
+            'requests_by_status' => $statuses
                 ->map(fn (string $status): array => [
                     'status' => $status,
-                    'total' => (int) ($statusCounts[$status] ?? 0),
+                    'total' => (int) ($statusCounts->get($status)->total ?? 0),
                 ])->all(),
             'monthly_requests' => $monthlyRequests,
         ]]);

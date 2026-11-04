@@ -5,9 +5,10 @@ namespace App\Services\Residents;
 use App\Models\DocumentRequest;
 use App\Models\DocumentType;
 use App\Models\User;
-use App\Support\CurrentBarangay;
 use App\Services\PortalNotificationService;
+use App\Support\CurrentBarangay;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Str;
 
 class DocumentRequestService
 {
@@ -32,7 +33,7 @@ class DocumentRequestService
             'DOC-%s-%s-%s',
             now()->format('Y'),
             preg_replace('/[^A-Za-z0-9]/', '', $barangayCode),
-            (string) \Illuminate\Support\Str::ulid(),
+            (string) Str::ulid(),
         );
 
         $request = DocumentRequest::create([

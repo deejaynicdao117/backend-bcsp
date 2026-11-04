@@ -2,11 +2,11 @@
 
 namespace App\Http\Middleware;
 
-use App\Support\CurrentBarangay;
 use App\Models\Barangay;
-use Illuminate\Support\Facades\Auth;
+use App\Support\CurrentBarangay;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class SetCurrentBarangay
